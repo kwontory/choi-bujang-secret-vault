@@ -6,6 +6,7 @@
     "build": "node scripts/build-public.mjs",
     "test:r5": "node --test test/r5.test.mjs",
     "test:step2": "node --test test/step2.test.mjs",
+    "test:step3": "node --test test/step3.test.mjs",
     "test:package": "node --test test/package-starter.test.mjs",
     "bundle": "node scripts/bundle.mjs",
     "decider:test": "node scripts/decider-test.mjs",
@@ -13,9 +14,7 @@
     "fixture:7": "node scripts/fixture-7.mjs",
     "xdr:run": "node scripts/xdr-run.mjs"
   },
-  "engines": {
-    "node": ">=22"
-  },
+  "engines": { "node": ">=22" },
   "dependencies": {
     "@supabase/supabase-js": "2.117.2",
     "jose": "6.2.12"
