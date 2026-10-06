@@ -1,14 +1,14 @@
-# BYTE BACK 방어전 · 4단계 저장점
+# BYTE BACK 방어전 · 5단계 저장점
 
-Supabase Auth 로그인과 서버 토큰 검증을 유지하면서, 메모 API의 모든 읽기·추가·수정·삭제를 검증된 소유자에게만 허용합니다. 비밀번호, JWT, 서버 전용 키는 저장소·응답·로그에 넣지 않습니다.
+Supabase Auth 로그인과 서버 토큰 검증을 유지하면서, 로그인·메모 CRUD를 Vercel 서버 함수로 통일했습니다. 비밀번호, JWT, 서버 전용 키는 저장소·응답·로그에 넣지 않습니다.
 
 ## 현재 작동하는 기능
 
-- `/`에서 이메일·비밀번호로 로그인하고 로그아웃할 수 있으며 실패 이유를 화면에 표시합니다.
+- `/`에서 `/api/auth`를 통한 이메일·비밀번호 로그인과 로그아웃을 할 수 있으며 공개 Supabase 키를 브라우저에 넣지 않습니다.
 - 토큰 없는 `/api/notes` 요청은 `401`과 JSON 오류로 거부됩니다.
 - 로그인 사용자는 자기 가상 메모만 목록·한 건 조회·추가·수정·삭제할 수 있습니다. 다른 소유자의 ID로 요청하면 `404`를 반환합니다.
 - 서버는 브라우저가 보낸 소유자 ID를 거부하고, 검증된 토큰의 사용자 ID를 새 메모의 `owner_id`로 저장합니다. 수정과 삭제는 ID와 검증된 소유자를 함께 조건으로 사용합니다.
-- `/data.json`은 빈 메모 배열이고 `/aleph.json`과 `X-Content-Type-Options: nosniff`를 유지합니다.
+- `/data.json`은 빈 메모 배열이고 `/aleph.json`과 `X-Content-Type-Options: nosniff`를 유지합니다. 원본 자료 API 주소는 `aleph.config.json`에 기록합니다.
 
 `supabase/step4-policy.sql`은 anon 권한을 회수하고 authenticated에 필요한 네 작업만 부여하는 제안 SQL입니다. 소유자별 RLS도 포함합니다. Supabase에는 검토·실행 후에야 적용됩니다.
 

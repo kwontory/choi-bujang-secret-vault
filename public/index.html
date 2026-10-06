@@ -34,7 +34,7 @@
 </head>
 <body>
   <main>
-    <div class="eyebrow">BYTE BACK · 4단계 소유자별 자료 보호</div>
+    <div class="eyebrow">BYTE BACK · 5단계 서버 단일 자료 요청</div>
     <h1>로그인 자료실</h1>
     <p>Supabase Auth로 로그인하고, 서버가 검증한 사용자 본인의 가상 메모만 관리합니다.</p>
 
@@ -67,12 +67,6 @@
     </section>
   </main>
   <script type="module">
-    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2';
-
-    const supabase = createClient(
-      'https://arsjjhghidyozzvknmqn.supabase.co',
-      'sb_publishable_OituZO7w8fe4lGVRslDnRg_OSX2ASIW',
-    );
     const loginForm = document.querySelector('#login-form');
     const signedIn = document.querySelector('#signed-in');
     const vault = document.querySelector('#vault');
@@ -181,18 +175,15 @@
     loginForm.addEventListener('submit', async event => {
       event.preventDefault();
       status.textContent = '로그인 중입니다.';
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: document.querySelector('#email').value,
-        password: document.querySelector('#password').value,
-      });
+      const response = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: document.querySelector('#email').value, password: document.querySelector('#password').value }) });
       document.querySelector('#password').value = '';
-      if (error) return void (status.textContent = `로그인 실패: ${error.message}`);
-      await showSession(data.session);
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) return void (status.textContent = '로그인 실패: 입력 정보를 확인해 주세요.');
+      await showSession({ access_token: data.access_token, user: { email: document.querySelector('#email').value } });
     });
 
     document.querySelector('#logout').addEventListener('click', async () => {
-      const { error } = await supabase.auth.signOut();
-      if (error) return void (status.textContent = `로그아웃 실패: ${error.message}`);
       await showSession(null);
     });
 
@@ -211,9 +202,7 @@
     });
     cancelEdit.addEventListener('click', resetEditor);
 
-    const { data } = await supabase.auth.getSession();
-    await showSession(data.session);
-    supabase.auth.onAuthStateChange((_event, nextSession) => { session = nextSession; });
+    await showSession(null);
   </script>
 </body>
 </html>

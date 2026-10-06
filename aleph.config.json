@@ -1,5 +1,5 @@
 {
-  "step": 4,
+  "step": 5,
   "repoUrl": "https://github.com/kwontory/choi-bujang-secret-vault",
   "publicAppUrl": "https://choi-bujang-secret-vault-sooty.vercel.app",
   "sampleMarker": "SAMPLE_NOTE_1",
@@ -10,12 +10,13 @@
     "jwksUrl": "https://arsjjhghidyozzvknmqn.supabase.co/auth/v1/.well-known/jwks.json"
   },
   "allowedRoutes": [
+    "POST /api/auth",
     "GET /api/notes",
     "POST /api/notes",
     "GET /api/notes/:id",
     "PUT /api/notes/:id",
     "DELETE /api/notes/:id"
   ],
-  "originalApiUrl": null,
+  "originalApiUrl": "https://arsjjhghidyozzvknmqn.supabase.co/rest/v1/notes",
   "restoreRoute": null
 }
