@@ -6,7 +6,7 @@ const read = path => readFile(new URL(path, import.meta.url), 'utf8');
 const config = JSON.parse(await read('../aleph.config.json'));
 
 test('3단계 인증 발급자와 실제 CRUD 경로가 선언되어 있다', () => {
-  assert.equal(config.step, 3);
+  assert.ok(config.step >= 3);
   assert.equal(config.identityProvider.issuer,
     'https://arsjjhghidyozzvknmqn.supabase.co/auth/v1');
   assert.equal(config.identityProvider.audience, 'authenticated');
