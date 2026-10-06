@@ -5,7 +5,7 @@ import { deploymentIdentity } from './deployment-identity.mjs';
 const root = resolve(import.meta.dirname, '..');
 const output = resolve(root, 'public', 'data.json');
 const config = JSON.parse(await readFile(resolve(root, 'aleph.config.json'), 'utf8'));
-if (config.step !== 4) throw new Error('4단계 설정을 확인하세요.');
+if (config.step !== 5) throw new Error('5단계 설정을 확인하세요.');
 await mkdir(resolve(root, 'public'), { recursive: true });
 await writeFile(output, '{\n  "notes": []\n}\n', 'utf8');
 console.log('공개 data.json에서 가상 메모를 제거했습니다.');
