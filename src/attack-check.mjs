@@ -1,7 +1,7 @@
 // The student changes this check as each stage adds an attack to the same app.
 // Never return tokens, private keys, real names, or note bodies.
 export async function runAttackChecks(config) {
-  if (![1, 2].includes(config.step)) throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
+  if (![1, 2, 3].includes(config.step)) throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
   let app;
   try {
     app = new URL(config.publicAppUrl);
@@ -30,7 +30,7 @@ export async function runAttackChecks(config) {
   }
   if (config.step === 1) {
     return [{ attackId: 'anonymous_note_read', expected: '비로그인 화면에서 가상 메모를 확인',
-      observed: visible ? '비로그인 요청에서 공개 가상 메모 확인 표시가 보임' : `비로그인 요청에서 확인 표시가 보이지 않음 (HTTP ${response.status})` }];
+      observed: visible ? '비로그인 요청에서 공개 가상 메모 확인 표시가 보임' : `비로그인 요청에서 확인 표시가 보이지 않음 (HTTP ` + response.status + ')' }];
   }
   let staticNotes = null;
   if (response.ok) {
@@ -44,6 +44,20 @@ export async function runAttackChecks(config) {
   const apiResponse = await fetch(new URL('/api/notes', app), {
     redirect: 'error', signal: AbortSignal.timeout(10000),
   });
+  if (config.step === 3) {
+    let errorCode = null;
+    try { errorCode = (await apiResponse.json())?.error ?? null; } catch { errorCode = null; }
+    return [
+      { attackId: 'static_note_read', expected: '정적 data.json에 메모가 없어야 함',
+        observed: response.status === 404 || staticNotes === 0
+          ? `정적 메모가 노출되지 않음 (HTTP ` + response.status + ')'
+          : `정적 메모 노출 여부를 확인하지 못함 (HTTP ` + response.status + ')' },
+      { attackId: 'anonymous_api_read', expected: '토큰 없는 메모 목록 요청은 JSON 오류와 함께 거부',
+        observed: [401, 403].includes(apiResponse.status) && typeof errorCode === 'string'
+          ? `비로그인 요청이 JSON 오류로 거부됨 (HTTP ` + apiResponse.status + ')'
+          : `비로그인 요청 거부를 확인하지 못함 (HTTP ` + apiResponse.status + ')' },
+    ];
+  }
   let apiCount = null;
   if (apiResponse.ok) {
     try {
@@ -56,10 +70,10 @@ export async function runAttackChecks(config) {
   return [
     { attackId: 'static_note_read', expected: '정적 data.json에 메모가 없어야 함',
       observed: response.status === 404 || staticNotes === 0
-        ? `정적 메모가 노출되지 않음 (HTTP ${response.status})`
-        : `정적 메모 노출 여부를 확인하지 못함 (HTTP ${response.status})` },
+        ? `정적 메모가 노출되지 않음 (HTTP ` + response.status + ')'
+        : `정적 메모 노출 여부를 확인하지 못함 (HTTP ` + response.status + ')' },
     { attackId: 'public_api_read', expected: '2단계 공개 API에서 가상 메모 네 건을 읽을 수 있음',
       observed: apiCount === 4 ? '공개 API에서 가상 메모 네 건 응답 확인'
-        : `공개 API 응답을 확인하지 못함 (HTTP ${apiResponse.status})` },
+        : `공개 API 응답을 확인하지 못함 (HTTP ` + apiResponse.status + ')' },
   ];
 }
