@@ -37,6 +37,7 @@ const requestBody = request => {
 const noteInput = request => {
   const input = requestBody(request);
   if (!input || Array.isArray(input)) return null;
+  if (Object.hasOwn(input, 'owner_id') || Object.hasOwn(input, 'ownerId')) return null;
   const title = typeof input.title === 'string' ? input.title.trim() : '';
   const body = typeof input.body === 'string' ? input.body.trim() : '';
   if (!title || title.length > 120 || !body || body.length > 2_000) return null;
@@ -80,7 +81,8 @@ export default async function handler(request, response) {
 
   if (request.method === 'GET' && routeId) {
     const { data, error } = await active.supabase
-      .from('notes').select('id, title, content').eq('id', routeId).maybeSingle();
+      .from('notes').select('id, title, content').eq('id', routeId)
+      .eq('owner_id', identity.userId).maybeSingle();
     if (error) return json(response, 502, { error: 'note_unavailable' });
     if (!data) return json(response, 404, { error: 'note_not_found' });
     return json(response, 200, { id: data.id, title: data.title, body: data.content });
@@ -91,7 +93,8 @@ export default async function handler(request, response) {
     if (!input) return json(response, 400, { error: 'invalid_note' });
     const { data, error } = await active.supabase.from('notes')
       .update({ title: input.title, content: input.body })
-      .eq('id', routeId).select('id, title, content').maybeSingle();
+      .eq('id', routeId).eq('owner_id', identity.userId)
+      .select('id, title, content').maybeSingle();
     if (error) return json(response, 502, { error: 'note_update_failed' });
     if (!data) return json(response, 404, { error: 'note_not_found' });
     return json(response, 200, { id: data.id, title: data.title, body: data.content });
@@ -99,7 +102,8 @@ export default async function handler(request, response) {
 
   if (request.method === 'DELETE' && routeId) {
     const { data, error } = await active.supabase.from('notes')
-      .delete().eq('id', routeId).select('id').maybeSingle();
+      .delete().eq('id', routeId).eq('owner_id', identity.userId)
+      .select('id').maybeSingle();
     if (error) return json(response, 502, { error: 'note_delete_failed' });
     if (!data) return json(response, 404, { error: 'note_not_found' });
     return json(response, 200, { deleted: true });

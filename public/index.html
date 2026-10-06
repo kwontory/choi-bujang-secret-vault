@@ -21,6 +21,7 @@
     button { padding: 10px 15px; border: 0; border-radius: 9px; background: #58c3cc; color: #071317; font-weight: 700; cursor: pointer; }
     button.secondary { background: #32465d; color: #ecf4ff; }
     button.danger { background: #9a4655; color: white; }
+    button:disabled { opacity: .55; cursor: wait; }
     #status { min-height: 1.5em; color: #ffd0d8; }
     #session { color: #9de3c2; overflow-wrap: anywhere; }
     ul { list-style: none; display: grid; gap: 12px; padding: 0; }
@@ -33,33 +34,45 @@
 </head>
 <body>
   <main>
-    <div class="eyebrow">BYTE BACK · 3단계 실제 로그인</div>
+    <div class="eyebrow">BYTE BACK · 4단계 소유자별 자료 보호</div>
     <h1>로그인 자료실</h1>
-    <p>Supabase Auth로 로그인하고, 서버가 검증한 토큰으로 가상 메모를 관리합니다. 소유자별 접근 제한은 다음 단계에서 완성합니다.</p>
-    <section class="panel">
+    <p>Supabase Auth로 로그인하고, 서버가 검증한 사용자 본인의 가상 메모만 관리합니다.</p>
+
+    <section id="auth-panel" class="panel">
       <h2>이메일 로그인</h2>
       <form id="login-form">
         <label>이메일<input id="email" type="email" autocomplete="username" required></label>
         <label>비밀번호<input id="password" type="password" autocomplete="current-password" required></label>
         <button type="submit">로그인</button>
       </form>
-      <div id="signed-in" hidden><p id="session"></p><button id="logout" type="button" class="secondary">로그아웃</button></div>
+      <div id="signed-in" hidden>
+        <p id="session"></p>
+        <button id="logout" type="button" class="secondary">로그아웃</button>
+      </div>
       <p id="status" role="status" aria-live="polite"></p>
     </section>
+
     <section id="vault" class="panel" hidden>
       <h2>내 가상 메모</h2>
       <form id="note-form">
         <input id="note-id" type="hidden">
         <label>제목<input id="note-title" maxlength="120" required></label>
         <label>내용<textarea id="note-body" maxlength="2000" required></textarea></label>
-        <div class="row"><button id="save-note" type="submit">추가</button><button id="cancel-edit" type="button" class="secondary" hidden>수정 취소</button></div>
+        <div class="row">
+          <button id="save-note" type="submit">추가</button>
+          <button id="cancel-edit" type="button" class="secondary" hidden>수정 취소</button>
+        </div>
       </form>
       <ul id="notes" aria-live="polite"></ul>
     </section>
   </main>
   <script type="module">
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2';
-    const supabase = createClient('https://arsjjhghidyozzvknmqn.supabase.co', 'sb_publishable_OituZO7w8fe4lGVRslDnRg_OSX2ASIW');
+
+    const supabase = createClient(
+      'https://arsjjhghidyozzvknmqn.supabase.co',
+      'sb_publishable_OituZO7w8fe4lGVRslDnRg_OSX2ASIW',
+    );
     const loginForm = document.querySelector('#login-form');
     const signedIn = document.querySelector('#signed-in');
     const vault = document.querySelector('#vault');
@@ -76,15 +89,36 @@
     let currentNotes = [];
 
     const api = async (path = '', options = {}) => {
-      const requestOptions = { ...options, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}`, ...options.headers } };
-      const response = path ? await fetch(`/api/notes${path}`, requestOptions) : await fetch('/api/notes', requestOptions);
+      const requestOptions = {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+          ...options.headers,
+        },
+      };
+      const response = path
+        ? await fetch(`/api/notes${path}`, requestOptions)
+        : await fetch('/api/notes', requestOptions);
       const body = response.status === 204 ? null : await response.json().catch(() => null);
       if (!response.ok) throw new Error(body?.error ?? `request_failed_${response.status}`);
       return body;
     };
-    const resetEditor = () => { noteForm.reset(); noteId.value = ''; saveNote.textContent = '추가'; cancelEdit.hidden = true; };
+
+    const resetEditor = () => {
+      noteForm.reset();
+      noteId.value = '';
+      saveNote.textContent = '추가';
+      cancelEdit.hidden = true;
+    };
+
     const renderNotes = () => {
-      if (!currentNotes.length) { const empty = document.createElement('li'); empty.textContent = '저장된 가상 메모가 없습니다.'; notes.replaceChildren(empty); return; }
+      if (!currentNotes.length) {
+        const empty = document.createElement('li');
+        empty.textContent = '저장된 가상 메모가 없습니다.';
+        notes.replaceChildren(empty);
+        return;
+      }
       notes.replaceChildren(...currentNotes.map(note => {
         const item = document.createElement('li');
         const title = document.createElement('strong');
@@ -92,34 +126,93 @@
         const actions = document.createElement('div');
         const edit = document.createElement('button');
         const remove = document.createElement('button');
-        title.textContent = note.title; body.textContent = note.body; actions.className = 'row';
-        edit.type = remove.type = 'button'; edit.className = 'secondary'; remove.className = 'danger'; edit.textContent = '수정'; remove.textContent = '삭제';
-        edit.addEventListener('click', () => { noteId.value = note.id; noteTitle.value = note.title; noteBody.value = note.body; saveNote.textContent = '수정 저장'; cancelEdit.hidden = false; noteTitle.focus(); });
-        remove.addEventListener('click', async () => { try { await api(`/${note.id}`, { method: 'DELETE' }); await loadNotes(); status.textContent = '가상 메모를 삭제했습니다.'; } catch (error) { status.textContent = `삭제 실패: ${error.message}`; } });
-        actions.append(edit, remove); item.append(title, body, actions); return item;
+        title.textContent = note.title;
+        body.textContent = note.body;
+        actions.className = 'row';
+        edit.type = remove.type = 'button';
+        edit.className = 'secondary';
+        remove.className = 'danger';
+        edit.textContent = '수정';
+        remove.textContent = '삭제';
+        edit.addEventListener('click', () => {
+          noteId.value = note.id;
+          noteTitle.value = note.title;
+          noteBody.value = note.body;
+          saveNote.textContent = '수정 저장';
+          cancelEdit.hidden = false;
+          noteTitle.focus();
+        });
+        remove.addEventListener('click', async () => {
+          try {
+            await api(`/${note.id}`, { method: 'DELETE' });
+            await loadNotes();
+            status.textContent = '가상 메모를 삭제했습니다.';
+          } catch (error) { status.textContent = `삭제 실패: ${error.message}`; }
+        });
+        actions.append(edit, remove);
+        item.append(title, body, actions);
+        return item;
       }));
     };
-    const loadNotes = async () => { currentNotes = await api(); renderNotes(); };
-    const showSession = async nextSession => {
-      session = nextSession; const active = Boolean(session); loginForm.hidden = active; signedIn.hidden = !active; vault.hidden = !active; status.textContent = ''; resetEditor();
-      if (active) { sessionText.textContent = `${session.user.email} 계정으로 로그인했습니다.`; try { await loadNotes(); } catch (error) { status.textContent = `자료 조회 실패: ${error.message}`; } }
-      else { sessionText.textContent = ''; currentNotes = []; notes.replaceChildren(); }
+
+    const loadNotes = async () => {
+      currentNotes = await api();
+      renderNotes();
     };
+
+    const showSession = async nextSession => {
+      session = nextSession;
+      const active = Boolean(session);
+      loginForm.hidden = active;
+      signedIn.hidden = !active;
+      vault.hidden = !active;
+      status.textContent = '';
+      resetEditor();
+      if (active) {
+        sessionText.textContent = `${session.user.email} 계정으로 로그인했습니다.`;
+        try { await loadNotes(); } catch (error) { status.textContent = `자료 조회 실패: ${error.message}`; }
+      } else {
+        sessionText.textContent = '';
+        currentNotes = [];
+        notes.replaceChildren();
+      }
+    };
+
     loginForm.addEventListener('submit', async event => {
-      event.preventDefault(); status.textContent = '로그인 중입니다.';
-      const { data, error } = await supabase.auth.signInWithPassword({ email: document.querySelector('#email').value, password: document.querySelector('#password').value });
+      event.preventDefault();
+      status.textContent = '로그인 중입니다.';
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: document.querySelector('#email').value,
+        password: document.querySelector('#password').value,
+      });
       document.querySelector('#password').value = '';
       if (error) return void (status.textContent = `로그인 실패: ${error.message}`);
       await showSession(data.session);
     });
-    document.querySelector('#logout').addEventListener('click', async () => { const { error } = await supabase.auth.signOut(); if (error) return void (status.textContent = `로그아웃 실패: ${error.message}`); await showSession(null); });
+
+    document.querySelector('#logout').addEventListener('click', async () => {
+      const { error } = await supabase.auth.signOut();
+      if (error) return void (status.textContent = `로그아웃 실패: ${error.message}`);
+      await showSession(null);
+    });
+
     noteForm.addEventListener('submit', async event => {
-      event.preventDefault(); const id = noteId.value;
-      try { await api(id ? `/${id}` : '', { method: id ? 'PUT' : 'POST', body: JSON.stringify({ title: noteTitle.value, body: noteBody.value }) }); resetEditor(); await loadNotes(); status.textContent = id ? '가상 메모를 수정했습니다.' : '가상 메모를 추가했습니다.'; }
-      catch (error) { status.textContent = `저장 실패: ${error.message}`; }
+      event.preventDefault();
+      const id = noteId.value;
+      try {
+        await api(id ? `/${id}` : '', {
+          method: id ? 'PUT' : 'POST',
+          body: JSON.stringify({ title: noteTitle.value, body: noteBody.value }),
+        });
+        resetEditor();
+        await loadNotes();
+        status.textContent = id ? '가상 메모를 수정했습니다.' : '가상 메모를 추가했습니다.';
+      } catch (error) { status.textContent = `저장 실패: ${error.message}`; }
     });
     cancelEdit.addEventListener('click', resetEditor);
-    const { data } = await supabase.auth.getSession(); await showSession(data.session);
+
+    const { data } = await supabase.auth.getSession();
+    await showSession(data.session);
     supabase.auth.onAuthStateChange((_event, nextSession) => { session = nextSession; });
   </script>
 </body>
