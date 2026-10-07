@@ -1,0 +1,9 @@
+{
+  "moduleKey": "web-injection",
+  "basis": "MITRE ATT&CK T1190 (Exploit Public-Facing Application)",
+  "patterns": [
+    { "name": "SQL 주입", "match": "웹 요청에 SQL 구문·조회 이어붙이기 표기가 같은 주소에서 반복", "basis": "T1190 / OWASP A03 Injection" },
+    { "name": "스크립트 주입", "match": "입력·주소에 스크립트 삽입 표기가 같은 주소에서 반복", "basis": "T1190 / OWASP A03 Injection" },
+    { "name": "경로 이탈", "match": "경로를 여러 단계 거슬러 올라가는 표기가 반복", "basis": "T1190 / Path Traversal" }
+  ]
+}

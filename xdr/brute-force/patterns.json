@@ -1,0 +1,8 @@
+{
+  "moduleKey": "brute-force",
+  "basis": "MITRE ATT&CK T1110 (Brute Force)",
+  "patterns": [
+    { "name": "연속 대입", "match": "같은 주소·같은 계정에서 짧은 시간에 로그인 실패가 기준 이상 연속", "basis": "T1110.001 Password Guessing" },
+    { "name": "비밀번호 분사", "match": "한 주소가 여러 계정에 같은 비밀번호를 번갈아 시도", "basis": "T1110.003 Password Spraying" }
+  ]
+}
