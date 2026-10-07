@@ -3,19 +3,10 @@
 // 반 엔진이 검증한 Wazuh 모양 로그인 경보 하나(alert)를 패턴과 맞춰 본 뒤
 // 확신도(confidence)를 매기고, 그 확신도로 행동을 나눕니다.
 //   - confidence >= 0.85 → block  (아주 명확한 대입/분사 → 판정기 거부 규칙 후보)
-//   - confidence >= 0.5  → alert  (애매한 시도 → xdr/alerts.log 에 한 줄씩)
+//   - confidence >= 0.5  → alert  (애매한 시도 → xdr/apply.mjs 가 xdr/alerts.log 에 한 줄씩)
 //   - 그 아래            → record (정상 로그인·성공한 오타·사용자 정상 행동·정보성 이벤트)
 // 이 모듈은 ZTNA 판정기 규칙(src/decider.mjs)을 대신하지 않고, 확인 단계를 더하는 부품입니다.
-// 경보 원본은 고치지 않습니다.
-
-import { appendFileSync, writeFileSync } from 'node:fs';
-
-// 제작 4 · 알림과 차단 — 산출 경로
-const ALERT_LOG = new URL('../alerts.log', import.meta.url);       // xdr/alerts.log (알림 적재)
-const DENY_RULES = new URL('./deny-rules.jsonl', import.meta.url);  // 차단 후보 → 판정기 거부 규칙 후보
-
-try { writeFileSync(ALERT_LOG, ''); } catch { /* 로그 실패는 판정을 막지 않습니다 */ }
-try { writeFileSync(DENY_RULES, ''); } catch { /* 무시 */ }
+// 경보 원본은 고치지 않습니다. decide 는 파일·네트워크를 쓰지 않는 순수 함수입니다.
 
 // 제작 2 · 패턴 목록(요약) — 근거: MITRE ATT&CK T1110 (무차별 대입)
 const CLEAR_LEVEL = 10;      // Wazuh 심각도 10 이상 = 지속/분사 실패로 본 상태
@@ -31,39 +22,12 @@ function toNum(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
-function logAlert(alert, reason) {
-  try {
-    const id = alert?.id ?? '';
-    const ip = alert?.data?.srcip ?? '';
-    appendFileSync(ALERT_LOG, `${alert?.timestamp ?? ''}\tALERT\t${id}\t${ip}\t${reason}\n`);
-  } catch { /* 무시 */ }
-}
-
-function logDeny(alert, reason) {
-  try {
-    const ip = alert?.data?.srcip ?? '';
-    const base = Date.parse(alert?.timestamp ?? '') || Date.now();
-    const expiresAt = new Date(base + 24 * 60 * 60 * 1000).toISOString(); // 만료 24시간
-    const rule = {
-      ruleId: `xdr.brute-force.${alert?.id ?? 'unknown'}`,
-      action: 'deny',
-      match: { srcip: ip },
-      sourceAlertId: alert?.id ?? '',
-      expiresAt,
-      reason,
-    };
-    appendFileSync(DENY_RULES, `${JSON.stringify(rule)}\n`);
-  } catch { /* 무시 */ }
-}
-
 function act(alert, confidence, reason, patternName) {
   const fullReason = patternName ? `${patternName}: ${reason}` : reason;
   let action = 'record';
   if (confidence >= 0.85) action = 'block';
   else if (confidence >= 0.5) action = 'alert';
 
-  if (action === 'block') logDeny(alert, fullReason);
-  if (action === 'alert') logAlert(alert, fullReason);
   return { action, confidence, reason: fullReason };
 }
 

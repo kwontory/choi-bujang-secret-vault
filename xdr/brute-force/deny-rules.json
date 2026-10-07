@@ -1,0 +1,106 @@
+{
+  "schema": "aleph.xdr.deny.v1",
+  "moduleKey": "brute-force",
+  "rules": [
+    {
+      "ruleId": "xdr.brute-force.bf-01",
+      "decision": "deny",
+      "match": {
+        "srcip": "203.0.113.10"
+      },
+      "sourceAlertId": "bf-01",
+      "expiresAt": "2026-09-28T00:12:01.000Z",
+      "reason": "연속 대입(T1110): 레벨 12 연속 실패 48건·성공 없음"
+    },
+    {
+      "ruleId": "xdr.brute-force.bf-02",
+      "decision": "deny",
+      "match": {
+        "srcip": "203.0.113.10"
+      },
+      "sourceAlertId": "bf-02",
+      "expiresAt": "2026-09-28T00:12:40.000Z",
+      "reason": "비밀번호 분사(T1110): 레벨 12 계정 8개 분사·성공 없음"
+    },
+    {
+      "ruleId": "xdr.brute-force.bf-03",
+      "decision": "deny",
+      "match": {
+        "srcip": "198.51.100.20"
+      },
+      "sourceAlertId": "bf-03",
+      "expiresAt": "2026-09-28T00:14:02.000Z",
+      "reason": "연속 대입(T1110): 레벨 10 연속 실패 36건·성공 없음"
+    },
+    {
+      "ruleId": "xdr.brute-force.bf-04",
+      "decision": "deny",
+      "match": {
+        "srcip": "192.0.2.30"
+      },
+      "sourceAlertId": "bf-04",
+      "expiresAt": "2026-09-28T00:20:11.000Z",
+      "reason": "연속 대입(T1110): 레벨 12 연속 실패 52건·성공 없음"
+    },
+    {
+      "ruleId": "xdr.brute-force.bf-05",
+      "decision": "deny",
+      "match": {
+        "srcip": "203.0.113.21"
+      },
+      "sourceAlertId": "bf-05",
+      "expiresAt": "2026-09-28T00:21:00.000Z",
+      "reason": "연속 대입(T1110): 레벨 11 연속 실패 20건·성공 없음"
+    },
+    {
+      "ruleId": "xdr.brute-force.bf-06",
+      "decision": "deny",
+      "match": {
+        "srcip": "198.51.100.44"
+      },
+      "sourceAlertId": "bf-06",
+      "expiresAt": "2026-09-28T02:02:15.000Z",
+      "reason": "연속 대입(T1110): 레벨 12 연속 실패 61건·성공 없음"
+    },
+    {
+      "ruleId": "xdr.brute-force.bf-07",
+      "decision": "deny",
+      "match": {
+        "srcip": "203.0.113.15"
+      },
+      "sourceAlertId": "bf-07",
+      "expiresAt": "2026-09-28T02:05:40.000Z",
+      "reason": "연속 대입(T1110): 레벨 10 연속 실패 40건·성공 없음"
+    },
+    {
+      "ruleId": "xdr.brute-force.bf-08",
+      "decision": "deny",
+      "match": {
+        "srcip": "192.0.2.18"
+      },
+      "sourceAlertId": "bf-08",
+      "expiresAt": "2026-09-28T04:10:02.000Z",
+      "reason": "연속 대입(T1110): 레벨 12 연속 실패 70건·성공 없음"
+    },
+    {
+      "ruleId": "xdr.brute-force.bf-09",
+      "decision": "deny",
+      "match": {
+        "srcip": "198.51.100.8"
+      },
+      "sourceAlertId": "bf-09",
+      "expiresAt": "2026-09-28T05:22:18.000Z",
+      "reason": "연속 대입(T1110): 레벨 11 연속 실패 15건·성공 없음"
+    },
+    {
+      "ruleId": "xdr.brute-force.bf-10",
+      "decision": "deny",
+      "match": {
+        "srcip": "203.0.113.40"
+      },
+      "sourceAlertId": "bf-10",
+      "expiresAt": "2026-09-28T06:40:01.000Z",
+      "reason": "연속 대입(T1110): 레벨 12 연속 실패 90건·성공 없음"
+    }
+  ]
+}
