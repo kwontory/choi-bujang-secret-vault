@@ -54,55 +54,55 @@
       "alertId": "wi-09",
       "action": "alert",
       "confidence": 0.6,
-      "reason": "단발 주입 의심(T1190): 주입 표식 1건·반복 없음(레벨 6)"
+      "reason": "단발 주입 의심(T1190): 단발 주입 의심(레벨 6, 반복 1회) — 반복 아님, 차단하지 않음"
     },
     {
       "alertId": "wi-10",
-      "action": "record",
-      "confidence": 0.2,
-      "reason": "정상 트래픽: 수업 용어/정상 조회가 표식에 걸린 단발 요청(레벨 5) — 주입 아님"
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "단발 주입 의심(T1190): 단발 주입 의심(레벨 5, 반복 1회) — 반복 아님, 차단하지 않음"
     },
     {
       "alertId": "wi-11",
-      "action": "record",
-      "confidence": 0.2,
-      "reason": "정상 트래픽: 수업 용어/정상 조회가 표식에 걸린 단발 요청(레벨 7) — 주입 아님"
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "단발 주입 의심(T1190): 단발 주입 의심(레벨 7, 반복 1회) — 반복 아님, 차단하지 않음"
     },
     {
       "alertId": "wi-12",
-      "action": "record",
-      "confidence": 0.2,
-      "reason": "정상 트래픽: 수업 용어/정상 조회가 표식에 걸린 단발 요청(레벨 6) — 주입 아님"
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "단발 주입 의심(T1190): 단발 주입 의심(레벨 6, 반복 1회) — 반복 아님, 차단하지 않음"
     },
     {
       "alertId": "wi-13",
-      "action": "record",
-      "confidence": 0.2,
-      "reason": "정상 트래픽: 수업 용어/정상 조회가 표식에 걸린 단발 요청(레벨 5) — 주입 아님"
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "단발 주입 의심(T1190): 단발 주입 의심(레벨 5, 반복 1회) — 반복 아님, 차단하지 않음"
     },
     {
       "alertId": "wi-14",
-      "action": "record",
-      "confidence": 0.2,
-      "reason": "정상 트래픽: 수업 용어/정상 조회가 표식에 걸린 단발 요청(레벨 7) — 주입 아님"
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "단발 주입 의심(T1190): 단발 주입 의심(레벨 7, 반복 1회) — 반복 아님, 차단하지 않음"
     },
     {
       "alertId": "wi-15",
       "action": "alert",
       "confidence": 0.6,
-      "reason": "단발 주입 의심(T1190): 주입 표식 1건·반복 없음(레벨 6)"
+      "reason": "단발 주입 의심(T1190): 단발 주입 의심(레벨 6, 반복 1회) — 반복 아님, 차단하지 않음"
     },
     {
       "alertId": "wi-16",
       "action": "alert",
       "confidence": 0.6,
-      "reason": "단발 주입 의심(T1190): 주입 표식 1건·반복 없음(레벨 8)"
+      "reason": "단발 주입 의심(T1190): 단발 주입 의심(레벨 8, 반복 1회) — 반복 아님, 차단하지 않음"
     },
     {
       "alertId": "wi-17",
       "action": "alert",
       "confidence": 0.6,
-      "reason": "단발 주입 의심(T1190): 주입 표식 1건·반복 없음(레벨 6)"
+      "reason": "단발 주입 의심(T1190): 단발 주입 의심(레벨 6, 반복 1회) — 반복 아님, 차단하지 않음"
     },
     {
       "alertId": "wi-18",
@@ -161,7 +161,7 @@
   ],
   "counts": {
     "block": 8,
-    "alert": 4,
-    "record": 14
+    "alert": 9,
+    "record": 9
   }
 }

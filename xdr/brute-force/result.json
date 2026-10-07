@@ -64,15 +64,15 @@
     },
     {
       "alertId": "bf-11",
-      "action": "record",
-      "confidence": 0.2,
-      "reason": "정상 트래픽: 실패 4건 뒤 로그인 성공 — 정상 사용자 오타"
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "대입 의심(T1110): 실패 패턴(실패 4건·계정 1개, 레벨 6) — 차단 기준 미달"
     },
     {
       "alertId": "bf-12",
-      "action": "record",
-      "confidence": 0.2,
-      "reason": "정상 트래픽: 실패 6건 뒤 로그인 성공 — 정상 사용자 오타"
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "대입 의심(T1110): 실패 패턴(실패 6건·계정 1개, 레벨 7) — 차단 기준 미달"
     },
     {
       "alertId": "bf-13",
@@ -94,15 +94,15 @@
     },
     {
       "alertId": "bf-16",
-      "action": "record",
-      "confidence": 0.2,
-      "reason": "정상 트래픽: 정상 사용자 맥락(레벨 5, 실패 3건) — 공격 신호 아님"
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "대입 의심(T1110): 실패 패턴(실패 3건·계정 1개, 레벨 5) — 차단 기준 미달"
     },
     {
       "alertId": "bf-17",
-      "action": "record",
-      "confidence": 0.2,
-      "reason": "정상 트래픽: 실패 4건 뒤 로그인 성공 — 정상 사용자 오타"
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "대입 의심(T1110): 실패 패턴(실패 4건·계정 1개, 레벨 6) — 차단 기준 미달"
     },
     {
       "alertId": "bf-18",
@@ -112,9 +112,9 @@
     },
     {
       "alertId": "bf-19",
-      "action": "record",
-      "confidence": 0.2,
-      "reason": "정상 트래픽: 정상 사용자 맥락(레벨 6, 실패 3건) — 공격 신호 아님"
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "대입 의심(T1110): 실패 패턴(실패 3건·계정 1개, 레벨 6) — 차단 기준 미달"
     },
     {
       "alertId": "bf-20",
@@ -173,7 +173,7 @@
   ],
   "counts": {
     "block": 10,
-    "alert": 4,
-    "record": 14
+    "alert": 9,
+    "record": 9
   }
 }
