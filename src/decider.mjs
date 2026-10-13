@@ -2,14 +2,49 @@
 // docs/DECIDER_REQUEST.md 의 aleph.decision.v1 요청 이름만 읽습니다.
 // 요청 본문의 사용자 번호, 기기 키, 토큰을 별도로 믿거나 저장하지 마세요.
 //
-// starter.deny        : 어떤 규칙에도 해당하지 않는 요청은 거부하는 시작 기본값
-// device_registered   : 6단계 · 등록된 기기에서 온 내 자료실 읽기만 허용
-// step_up_required    : 7단계 · 평소와 다른 접속(지역·시각·네트워크·행동)은 다시 로그인 확인
-export const RULE_IDS = Object.freeze(['starter.deny', 'device_registered', 'step_up_required']);
+// starter.deny                      : 구역표에 없는 서비스·경로는 거부하는 시작 기본값
+// device_registered                 : 6단계 · 등록된 기기에서 온 요청만 다음 판단으로 넘김
+// step_up_required                  : 7단계 · 평소와 다른 접속(지역·시각·네트워크·행동)은 다시 로그인 확인
+// zone_notes_item_only              : 8단계 · 메모 구역은 자료 ID 하나를 고르는 경로만, 전체 목록은 거부
+// zone_announcements_read_only      : 8단계 · 반 공지 구역은 읽기(GET)만, 쓰기는 누구에게나 거부
+// zone_instructor_materials_closed  : 8단계 · 강사 자료 구역은 판정기에서 모두 거부
+export const RULE_IDS = Object.freeze([
+  'starter.deny', 'device_registered', 'step_up_required',
+  'zone_notes_item_only', 'zone_announcements_read_only', 'zone_instructor_materials_closed',
+]);
 
 const SCHEMA = 'aleph.decision.v1';
 const DEVICE_ID = /^[0-9a-f]{16}$/u;
-const READ_METHODS = new Set(['GET']);
+
+// 8단계 구역표: 서비스마다 허용하는 정확한 경로 모양과 메서드, 거부 사유를 적습니다.
+// 메모 주인 비교는 판정기가 아니라 자료 API(api/notes.js)가 합니다.
+// 자료 ID 형식은 좁히지 않습니다. :id 와 같은 깊이에 기능 경로를 두지 않고, 쿼리로 기능을 고르지 않습니다.
+const WRITE_METHODS = Object.freeze(['POST', 'PUT', 'PATCH', 'DELETE']);
+const METHODS = Object.freeze(['GET', ...WRITE_METHODS]);
+const NOTES_ZONE = Object.freeze({
+  ruleId: 'zone_notes_item_only', prefix: '/notes',
+  collection: Object.freeze([]), item: Object.freeze(['GET', 'PUT', 'DELETE']),
+  collectionDenied: 'note_list_denied', writeDenied: null, allDenied: null,
+});
+// 반 공지 구역: 요청 계약에 역할이 없으므로 쓰기는 누구에게나 거부합니다. 강사의 공지 수정은 서버 관리 경로가 맡습니다.
+const ANNOUNCEMENTS_ZONE = Object.freeze({
+  ruleId: 'zone_announcements_read_only', prefix: '/announcements',
+  collection: Object.freeze(['GET']), item: Object.freeze(['GET']),
+  collectionDenied: null, writeDenied: 'announcement_write_denied', allDenied: null,
+});
+// 강사 자료 구역: 판정기는 어떤 동작도 허용하지 않습니다.
+const MATERIALS_ZONE = Object.freeze({
+  ruleId: 'zone_instructor_materials_closed', prefix: '/materials',
+  collection: Object.freeze([]), item: Object.freeze([]),
+  collectionDenied: null, writeDenied: null, allDenied: 'instructor_material_denied',
+});
+const ZONES = Object.freeze({
+  notes: NOTES_ZONE,
+  announcements: ANNOUNCEMENTS_ZONE,
+  notices: Object.freeze({ ...ANNOUNCEMENTS_ZONE, prefix: '/notices' }),
+  materials: MATERIALS_ZONE,
+  instructor_materials: Object.freeze({ ...MATERIALS_ZONE, prefix: '/instructor_materials' }),
+});
 
 // 7단계 기준값
 const VERIFIED_SIGNAL_SOURCE = 'judge_fixture'; // 엔진이 검증해 넘긴 가상 접속 정보
@@ -86,15 +121,52 @@ function freshlyVerified(stepUp) {
   return isWholeNumber(stepUp.authAgeSeconds, 0, STEP_UP_FRESH_SECONDS);
 }
 
+// 8단계: 서비스·메서드·경로 모양·실제 경로가 구역표와 정확히 맞을 때만 통과합니다.
+// 막을 때는 「모르는 경로」가 아니라 어느 구역 규칙으로 막았는지 규칙 이름과 사유를 남깁니다.
+function checkZone(service, method, path, route, queryLength) {
+  const unknown = { ok: false, reasonCode: 'starter_not_ready', ruleId: 'starter.deny' };
+  if (typeof service !== 'string' || typeof method !== 'string'
+      || typeof path !== 'string' || typeof route !== 'string') return unknown;
+  const zone = Object.hasOwn(ZONES, service) ? ZONES[service] : null;
+  if (!zone) return unknown;
+  const deny = reasonCode => ({ ok: false, reasonCode, ruleId: zone.ruleId });
+  if (zone.allDenied) return deny(zone.allDenied);
+  if (!METHODS.includes(method)) return deny('route_not_allowed');
+  if (zone.writeDenied && WRITE_METHODS.includes(method)) return deny(zone.writeDenied);
+  // 쿼리로 기능을 고르지 않습니다. 쿼리가 붙은 요청은 거부합니다.
+  if (queryLength !== 0) return deny('route_not_allowed');
+  const collectionRoute = `${method} ${zone.prefix}`;
+  const itemRoute = `${method} ${zone.prefix}/:id`;
+  if (route === collectionRoute) {
+    if (!zone.collection.includes(method)) return deny(zone.collectionDenied ?? 'route_not_allowed');
+    if (path !== zone.prefix) return deny('route_not_allowed');
+    return { ok: true, ruleId: zone.ruleId };
+  }
+  if (route === itemRoute) {
+    const prefix = `${zone.prefix}/`;
+    const id = path.startsWith(prefix) ? path.slice(prefix.length) : '';
+    if (!id || id.includes('/') || !zone.item.includes(method)) return deny('route_not_allowed');
+    return { ok: true, ruleId: zone.ruleId };
+  }
+  // 구역 안이라도 표에 없는 경로 모양(예: /notes/:id/export)은 거부합니다.
+  return deny('route_not_allowed');
+}
+
 export async function decide(request) {
   // 계약에 있는 이름만 꺼냅니다. 값이 없거나 형식이 다르면 등록 기기로 보지 않습니다.
-  const { requestId = null, deviceId, deviceRegistered, method, stepUp, recentEvents, signals } =
-    isPlainObject(request) ? request : {};
+  const {
+    requestId = null, deviceId, deviceRegistered, service, method, path, route, queryLength,
+    stepUp, recentEvents, signals,
+  } = isPlainObject(request) ? request : {};
 
   // 6단계: 기기 등록 여부가 정확히 true 이고 기기 ID 형식이 맞을 때만 다음 판단으로 넘어갑니다.
   if (deviceRegistered !== true || typeof deviceId !== 'string' || !DEVICE_ID.test(deviceId)) {
     return respond(requestId, 'deny', 'device_not_registered', ['device_registered']);
   }
+
+  // 8단계: 구역표에 없는 서비스·경로·동작은 다른 판단 전에 거부합니다.
+  const zone = checkZone(service, method, path, route, queryLength);
+  if (!zone.ok) return respond(requestId, 'deny', zone.reasonCode, [zone.ruleId]);
 
   // 7단계: 평소와 다른 접속이면 영구 차단하지 않고 다시 로그인 확인을 요구합니다.
   const context = readContext(signals);
@@ -109,11 +181,6 @@ export async function decide(request) {
     passedRules.push('step_up_required');
   }
 
-  // 등록 기기의 내 자료실 읽기만 허용합니다.
-  if (typeof method === 'string' && READ_METHODS.has(method)) {
-    return respond(requestId, 'allow', 'approved', passedRules);
-  }
-
-  // 그 밖의 요청은 시작 기본값대로 거부합니다.
-  return respond(requestId, 'deny', 'starter_not_ready', ['starter.deny']);
+  // 등록 기기 + 허용 구역 + (필요하면) 다시 확인을 모두 통과한 요청만 허용합니다.
+  return respond(requestId, 'allow', 'approved', [...passedRules, zone.ruleId]);
 }

@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import config from '../aleph.config.json' with { type: 'json' };
 import { createLoginVerifier } from '../src/verify-login.mjs';
 
+// 8단계: 메모 응답마다 구역 이름이 붙은 자원 ID(note:<id>)를 함께 돌려줍니다.
+const noteResourceId = id => `note:${id}`;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 let runtime;
 
@@ -38,6 +40,8 @@ const noteInput = request => {
   const input = requestBody(request);
   if (!input || Array.isArray(input)) return null;
   if (Object.hasOwn(input, 'owner_id') || Object.hasOwn(input, 'ownerId')) return null;
+  // 8단계: 본문에 적힌 역할 값으로 구역을 열지 않습니다. 역할을 보내면 거부합니다.
+  if (Object.hasOwn(input, 'role')) return null;
   const title = typeof input.title === 'string' ? input.title.trim() : '';
   const body = typeof input.body === 'string' ? input.body.trim() : '';
   if (!title || title.length > 120 || !body || body.length > 2_000) return null;
@@ -62,7 +66,7 @@ export default async function handler(request, response) {
       .order('created_at', { ascending: true });
     if (error) return json(response, 502, { error: 'notes_unavailable' });
     return json(response, 200, (data ?? []).map(note => ({
-      id: note.id, title: note.title, body: note.content,
+      id: note.id, resourceId: noteResourceId(note.id), title: note.title, body: note.content,
     })));
   }
 
@@ -76,7 +80,7 @@ export default async function handler(request, response) {
       id, owner_id: identity.userId, title: input.title, content: input.body,
     });
     if (error) return json(response, 502, { error: 'note_create_failed' });
-    return json(response, 201, { id });
+    return json(response, 201, { id, resourceId: noteResourceId(id) });
   }
 
   if (request.method === 'GET' && routeId) {
@@ -85,7 +89,9 @@ export default async function handler(request, response) {
       .eq('owner_id', identity.userId).maybeSingle();
     if (error) return json(response, 502, { error: 'note_unavailable' });
     if (!data) return json(response, 404, { error: 'note_not_found' });
-    return json(response, 200, { id: data.id, title: data.title, body: data.content });
+    return json(response, 200, {
+      id: data.id, resourceId: noteResourceId(data.id), title: data.title, body: data.content,
+    });
   }
 
   if (request.method === 'PUT' && routeId) {
@@ -97,7 +103,9 @@ export default async function handler(request, response) {
       .select('id, title, content').maybeSingle();
     if (error) return json(response, 502, { error: 'note_update_failed' });
     if (!data) return json(response, 404, { error: 'note_not_found' });
-    return json(response, 200, { id: data.id, title: data.title, body: data.content });
+    return json(response, 200, {
+      id: data.id, resourceId: noteResourceId(data.id), title: data.title, body: data.content,
+    });
   }
 
   if (request.method === 'DELETE' && routeId) {

@@ -4,7 +4,10 @@
   "buildCommand": "npm run build",
   "outputDirectory": "public",
   "rewrites": [
-    { "source": "/api/notes/:id", "destination": "/api/notes?id=:id" }
+    { "source": "/api/notes/:id", "destination": "/api/notes?id=:id" },
+    { "source": "/api/announcements/:id", "destination": "/api/announcements?id=:id" },
+    { "source": "/api/admin/announcements/:id", "destination": "/api/admin/announcements?id=:id" },
+    { "source": "/api/materials/:id", "destination": "/api/materials?id=:id" }
   ],
   "headers": [
     { "source": "/(.*)", "headers": [

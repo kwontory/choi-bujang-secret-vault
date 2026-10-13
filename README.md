@@ -1,4 +1,4 @@
-# BYTE BACK 방어전 · 7단계 저장점
+# BYTE BACK 방어전 · 8단계 저장점
 
 Supabase Auth 로그인과 서버 토큰 검증을 유지하면서, 로그인·메모 CRUD를 Vercel 서버 함수로 통일했습니다. 비밀번호, JWT, 서버 전용 키는 저장소·응답·로그에 넣지 않습니다.
 
@@ -10,6 +10,12 @@ Supabase Auth 로그인과 서버 토큰 검증을 유지하면서, 로그인·�
 - 서버는 브라우저가 보낸 소유자 ID를 거부하고, 검증된 토큰의 사용자 ID를 새 메모의 `owner_id`로 저장합니다. 수정과 삭제는 ID와 검증된 소유자를 함께 조건으로 사용합니다.
 - 6단계: `src/decider.mjs`의 `device_registered` 규칙은 `docs/DECIDER_REQUEST.md` 계약의 `deviceRegistered`가 정확히 `true`이고 `deviceId`가 16자리 소문자 16진수일 때만 내 자료실 읽기(`GET`)를 `allow`·`approved`로 허용합니다. 미등록이거나 값이 없으면 `deny`·`device_not_registered`로 거부하고, 그 밖의 요청은 시작 기본값 `starter.deny`(`starter_not_ready`)로 거부합니다.
 - 7단계: `step_up_required` 규칙은 엔진이 검증한 접속 정보(`signals.source`가 `judge_fixture`)에서 지역이 `local`이 아니거나, 네트워크가 `usual`이 아니거나, 시각이 06~22시 밖이거나, 최근 10분 사건(`recentEvents`)에 `risk_signal` 또는 합계 10건 이상의 대량 행동이 있으면 `step_up`·`step_up_required`로 다시 로그인을 요구합니다. 접속 정보가 없거나 출처가 불명확하면(알 수 없는 `source`, `none`인데 지역·네트워크 값이 있는 경우) 정상값으로 채우지 않고 추가 확인으로 보냅니다. 지역 하나만으로 영구 차단(`deny`)하지 않습니다. 엔진이 검증한 `stepUp.verified`가 `true`이고 `authAgeSeconds`가 300초 이내일 때만 다시 판정해 읽기를 허용합니다.
+- 8단계 구역 나누기: 메모 응답에는 `note:<id>`, 반 공지 응답에는 `announcement:<id>` 자원 ID가 붙습니다. 판정기 구역표는 세 구역을 따로 둡니다.
+  - 메모(`notes`, `zone_notes_item_only`): `GET·PUT·DELETE /notes/:id`(자료 ID 하나)만 허용, 전체 목록·ID 없는 경로는 `note_list_denied`, `/notes/:id/export` 같은 표에 없는 모양·쿼리 요청은 `route_not_allowed`.
+  - 반 공지(`announcements`, `zone_announcements_read_only`): `GET /announcements`, `GET /announcements/:id`만 허용, POST·PUT·PATCH·DELETE는 누구에게나 `announcement_write_denied`.
+  - 강사 자료(`materials`, `zone_instructor_materials_closed`): 모든 요청을 `instructor_material_denied`로 거부.
+  - 구역표에 없는 서비스는 `starter.deny`(`starter_not_ready`). 메모 주인 비교는 판정기가 아니라 `api/notes.js`가 검증된 사용자 ID와 저장된 `owner_id`로 합니다. 자료 ID 형식은 판정기에서 좁히지 않습니다.
+- 반 공지 API(`/api/announcements`, `/api/announcements/:id`)는 로그인한 사용자의 GET만 받고 쓰기는 `403 announcement_write_denied`입니다. 공지 수정은 강사 관리 경로 `PUT /api/admin/announcements/:id`에서만 하며, 서버에 저장된 강사 권한표(`class_instructors`)에 있는 학생 로그인 사용자만 통과하고 그 밖에는 `403 instructor_only`입니다. 강사 자료 API(`/api/materials/:id`)는 로그인 없으면 `401`, 있어도 `403 instructor_material_denied`입니다. 화면 메뉴나 요청 본문의 `role` 값은 믿지 않으며, 메모 본문에 `role`을 넣으면 `400`으로 거부합니다.
 - `/data.json`은 빈 메모 배열이고 `/aleph.json`과 `X-Content-Type-Options: nosniff`를 유지합니다. 원본 자료 API 주소는 `aleph.config.json`에 기록합니다.
 
 `supabase/step4-policy.sql`은 anon 권한을 회수하고 authenticated에 필요한 네 작업만 부여하는 제안 SQL입니다. 소유자별 RLS도 포함합니다. Supabase에는 검토·실행 후에야 적용됩니다.
@@ -29,6 +35,15 @@ Supabase Auth 로그인과 서버 토큰 검증을 유지하면서, 로그인·�
 - `anon`에 메모 테이블 권한이 없고 `authenticated`에는 SELECT·INSERT·UPDATE·DELETE만 있는지 SQL 출력으로 확인합니다.
 - 브라우저 파일과 응답에 `SUPABASE_SECRET_KEY` 또는 서버 비밀키가 없는지 확인합니다.
 - `npm run test:step3`으로 발급자 정보, 실제 CRUD 경로, 공식 로그인 흐름, 서버 토큰 검증기 사용을 확인합니다.
+
+## 8단계 구역 확인 순서
+
+1. Supabase SQL Editor에서 `supabase/step8-zones.sql`을 검토하고 실행합니다. 마지막 결과에 `anon`·`authenticated` 권한이 비어 있어야 합니다. 실행 전에는 공지 API가 `502 announcements_unavailable`, 강사 관리 경로가 `403 instructor_only`로 닫혀 있습니다.
+2. `npm run decider:test`로 6·7단계 규칙이 그대로 통과하는지 봅니다.
+3. 정상 결과: 로그인한 내 메모 한 건 읽기(`GET /api/notes/:id`)는 `200`, 판정기에서는 `allow`·`zone_notes_item_only`.
+4. 거부되어야 할 결과: 판정기에서 `GET /notes`(전체 목록)는 `deny`·`note_list_denied`, 공지 쓰기는 `deny`·`announcement_write_denied`, 강사 자료는 `deny`·`instructor_material_denied`, 표에 없는 서비스는 `deny`·`starter_not_ready`. API에서 다른 사람 메모 조회·수정은 `404 note_not_found`, 로그인 없는 공지·강사 자료 읽기는 `401`, 학생 계정의 공지 수정은 `403 announcement_write_denied` 또는 `403 instructor_only`.
+
+`aleph.config.json`의 `allowedRoutes`에는 판정기가 허용하는 경로만 적습니다. 화면이 쓰는 내 메모 목록(`GET /api/notes`)과 추가(`POST /api/notes`)는 서버 API에 그대로 남아 있고, 검증된 사용자 자신의 메모만 다룹니다.
 
 ## 6단계 판정기 확인 순서
 

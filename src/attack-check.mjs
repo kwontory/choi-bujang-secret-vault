@@ -1,7 +1,7 @@
 // The student changes this check as each stage adds an attack to the same app.
 // Never return tokens, private keys, real names, or note bodies.
 export async function runAttackChecks(config) {
-  if (![1, 2, 3, 4, 5, 6, 7].includes(config.step)) throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
+  if (![1, 2, 3, 4, 5, 6, 7, 8].includes(config.step)) throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
   let app;
   try {
     app = new URL(config.publicAppUrl);
@@ -77,6 +77,35 @@ export async function runAttackChecks(config) {
           observed: unusual?.decision === 'step_up' && unusual?.reasonCode === 'step_up_required'
             ? '로컬 판정기 가상 사건에서 step_up·step_up_required 확인 (실제 재로그인 차단은 미실행)'
             : `로컬 판정기 가상 사건 결과가 기대와 다름 (${unusual?.decision ?? '응답 없음'})`,
+        });
+      }
+      if (config.step >= 8) {
+        // 다른 구역 요청을 로컬 판정기에 넣고, 배포에는 로그인 없는 공지 읽기 GET 한 건만 보냅니다.
+        const zoneRequest = (service, method, route, path) => ({ ...normal, service, method, route, path });
+        const list = await decide(zoneRequest('notes', 'GET', 'GET /notes', '/notes'));
+        const noticeWrite = await decide(zoneRequest('announcements', 'PUT', 'PUT /announcements/:id', '/announcements/demo'));
+        const ownRead = await decide(normal);
+        attempts.push({
+          attackId: 'zone_decider_check',
+          expected: '자기 메모 한 건 읽기는 allow, 메모 전체 목록·공지 쓰기는 deny',
+          observed: ownRead?.decision === 'allow' && list?.decision === 'deny' && noticeWrite?.decision === 'deny'
+            ? '로컬 판정기 가상 요청에서 자기 메모 allow, 전체 목록·공지 쓰기 deny 확인'
+            : `로컬 판정기 결과가 기대와 다름 (${ownRead?.decision}/${list?.decision}/${noticeWrite?.decision})`,
+        });
+        const notice = await fetch(new URL('/api/announcements', app), {
+          redirect: 'error', signal: AbortSignal.timeout(10000),
+        });
+        attempts.push({
+          attackId: 'anonymous_notice_read',
+          expected: '토큰 없는 반 공지 읽기는 자료 없이 거부',
+          observed: [401, 403].includes(notice.status)
+            ? `비로그인 공지 요청이 거부됨 (HTTP ${notice.status})`
+            : `비로그인 공지 요청 거부를 확인하지 못함 (HTTP ${notice.status})`,
+        });
+        attempts.push({
+          attackId: 'cross_zone_write',
+          expected: '학생 계정의 다른 메모 수정·강사 공지 수정은 API에서 거부',
+          observed: 'not_run · 로그인 계정이 필요한 쓰기 요청이라 직접 점검 미실행',
         });
       }
     }
