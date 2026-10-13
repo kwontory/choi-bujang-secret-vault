@@ -1,7 +1,7 @@
 // The student changes this check as each stage adds an attack to the same app.
 // Never return tokens, private keys, real names, or note bodies.
 export async function runAttackChecks(config) {
-  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10].includes(config.step)) throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
+  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].includes(config.step)) throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
   let app;
   try {
     app = new URL(config.publicAppUrl);
@@ -138,6 +138,38 @@ export async function runAttackChecks(config) {
             expected: '시험 계정 B 메모 변조·삭제 뒤 복구 경로로 ID·소유자·내용 해시가 사본과 같게 한 건만 복원',
             observed: 'not_run · 시험 계정 B 로그인과 쓰기 요청이 필요해 직접 점검 미실행(로컬 npm run restore:test 별도)',
           });
+          if (config.step >= 11) {
+            // 접속 앱 화면·설정에 GET 만 보냅니다. 기기 승인·서명 요청은 로그인과 승인 기기가 필요해 미실행입니다.
+            const page = await fetch(new URL('/', app), { redirect: 'error', signal: AbortSignal.timeout(10000) });
+            const html = page.ok ? await page.text() : '';
+            const manifest = await fetch(new URL('/manifest.webmanifest', app), {
+              redirect: 'error', signal: AbortSignal.timeout(10000),
+            });
+            let manifestOk = false;
+            try { const data = manifest.ok ? await manifest.json() : null; manifestOk = Boolean(data?.name && data?.start_url); } catch { manifestOk = false; }
+            attempts.push({
+              attackId: 'app_shell_before_approval',
+              expected: '접속 화면에 manifest 연결이 있고, 승인 전 화면 HTML 에 보호 자료가 없음',
+              observed: page.ok && manifestOk && html.includes('rel="manifest"') && !html.includes(config.sampleMarker)
+                ? `접속 화면·manifest 확인, 승인 전 HTML 에 자료 없음 (HTTP ${page.status}/${manifest.status})`
+                : `접속 화면 점검 결과가 기대와 다름 (HTTP ${page.status}/${manifest.status})`,
+            });
+            const deviceStatus = await fetch(new URL('/api/device/status', app), {
+              redirect: 'error', signal: AbortSignal.timeout(10000),
+            });
+            attempts.push({
+              attackId: 'anonymous_device_status',
+              expected: '토큰 없는 기기 승인 상태 확인은 거부',
+              observed: [401, 403].includes(deviceStatus.status)
+                ? `비로그인 기기 상태 확인이 거부됨 (HTTP ${deviceStatus.status})`
+                : `비로그인 기기 상태 거부를 확인하지 못함 (HTTP ${deviceStatus.status})`,
+            });
+            attempts.push({
+              attackId: 'unsigned_or_altered_request',
+              expected: '서명 없는 요청·서명 뒤 경로나 본문을 바꾼 요청은 거부',
+              observed: 'not_run · 승인된 기기와 로그인이 필요한 쓰기 요청이라 직접 점검 미실행(판정기 request_integrity 는 로컬 가상 요청으로 별도 확인)',
+            });
+          }
           attempts.push({
             attackId: 'post_restore_retest',
             expected: '복구 뒤 1~9단계 정상 요청은 통과, 금지 요청은 다시 거부',

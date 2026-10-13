@@ -8,9 +8,11 @@
 // zone_notes_item_only              : 8단계 · 메모 구역은 자료 ID 하나를 고르는 경로만, 전체 목록은 거부
 // zone_announcements_read_only      : 8단계 · 반 공지 구역은 읽기(GET)만, 쓰기는 누구에게나 거부
 // zone_instructor_materials_closed  : 8단계 · 강사 자료 구역은 판정기에서 모두 거부
+// request_integrity                 : 11단계 · 서명된 요청의 메서드·경로·쿼리 지문이 서로 맞지 않으면 거부
 export const RULE_IDS = Object.freeze([
   'starter.deny', 'device_registered', 'step_up_required',
   'zone_notes_item_only', 'zone_announcements_read_only', 'zone_instructor_materials_closed',
+  'request_integrity',
 ]);
 
 const SCHEMA = 'aleph.decision.v1';
@@ -45,6 +47,10 @@ const ZONES = Object.freeze({
   materials: MATERIALS_ZONE,
   instructor_materials: Object.freeze({ ...MATERIALS_ZONE, prefix: '/instructor_materials' }),
 });
+
+// 11단계: 빈 쿼리의 SHA-256 지문. 쿼리 길이가 0인데 지문이 다르면 서명 뒤 바뀐 요청으로 봅니다.
+const EMPTY_SHA256 = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+const SHA256_HEX = /^[0-9a-f]{64}$/u;
 
 // 7단계 기준값
 const VERIFIED_SIGNAL_SOURCE = 'judge_fixture'; // 엔진이 검증해 넘긴 가상 접속 정보
@@ -121,6 +127,25 @@ function freshlyVerified(stepUp) {
   return isWholeNumber(stepUp.authAgeSeconds, 0, STEP_UP_FRESH_SECONDS);
 }
 
+// 11단계: 엔진이 넘긴 메서드·경로 모양(route)·실제 경로(path)·쿼리 지문이 서로 맞는지 봅니다.
+// 서명 뒤 경로를 바꾸거나 메서드·쿼리를 바꾼 요청은 구역 판단 전에 거부합니다.
+function checkIntegrity(method, path, route, queryLength, querySha256) {
+  if (typeof method !== 'string' || typeof path !== 'string' || typeof route !== 'string') return false;
+  const space = route.indexOf(' ');
+  if (space <= 0 || route.slice(0, space) !== method) return false;
+  const shape = route.slice(space + 1).split('/');
+  const actual = path.split('/');
+  if (shape[0] !== '' || actual[0] !== '' || shape.length !== actual.length) return false;
+  for (let index = 1; index < shape.length; index += 1) {
+    if (!actual[index]) return false;
+    if (!shape[index].startsWith(':') && shape[index] !== actual[index]) return false;
+  }
+  if (!Number.isInteger(queryLength) || queryLength < 0) return false;
+  if (typeof querySha256 !== 'string' || !SHA256_HEX.test(querySha256)) return false;
+  if (queryLength === 0 && querySha256 !== EMPTY_SHA256) return false;
+  return true;
+}
+
 // 8단계: 서비스·메서드·경로 모양·실제 경로가 구역표와 정확히 맞을 때만 통과합니다.
 // 막을 때는 「모르는 경로」가 아니라 어느 구역 규칙으로 막았는지 규칙 이름과 사유를 남깁니다.
 function checkZone(service, method, path, route, queryLength) {
@@ -155,13 +180,18 @@ function checkZone(service, method, path, route, queryLength) {
 export async function decide(request) {
   // 계약에 있는 이름만 꺼냅니다. 값이 없거나 형식이 다르면 등록 기기로 보지 않습니다.
   const {
-    requestId = null, deviceId, deviceRegistered, service, method, path, route, queryLength,
+    requestId = null, deviceId, deviceRegistered, service, method, path, route, queryLength, querySha256,
     stepUp, recentEvents, signals,
   } = isPlainObject(request) ? request : {};
 
   // 6단계: 기기 등록 여부가 정확히 true 이고 기기 ID 형식이 맞을 때만 다음 판단으로 넘어갑니다.
   if (deviceRegistered !== true || typeof deviceId !== 'string' || !DEVICE_ID.test(deviceId)) {
     return respond(requestId, 'deny', 'device_not_registered', ['device_registered']);
+  }
+
+  // 11단계: 요청 모양이 서로 맞지 않으면(서명 뒤 변경) 거부합니다.
+  if (!checkIntegrity(method, path, route, queryLength, querySha256)) {
+    return respond(requestId, 'deny', 'request_tampered', ['request_integrity']);
   }
 
   // 8단계: 구역표에 없는 서비스·경로·동작은 다른 판단 전에 거부합니다.

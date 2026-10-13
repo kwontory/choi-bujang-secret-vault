@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import config from '../aleph.config.json' with { type: 'json' };
 import { createLoginVerifier } from '../src/verify-login.mjs';
 import { appendAudit, contentSha256, ensureBackup } from '../src/note-backup.mjs';
+import { checkSignedRequest } from '../src/device-approval.mjs';
 
 // 8단계: 메모 응답마다 구역 이름이 붙은 자원 ID(note:<id>)를 함께 돌려줍니다.
 const noteResourceId = id => `note:${id}`;
@@ -71,6 +72,12 @@ export default async function handler(request, response) {
 
   const routeId = typeof request.query?.id === 'string' ? request.query.id : null;
   if (routeId && !UUID.test(routeId)) return json(response, 400, { error: 'invalid_note_id' });
+
+  // 11단계: 접속 앱이 기기 서명을 붙여 보낸 요청은 서명을 확인합니다.
+  // 서명 뒤 경로나 본문을 바꿨거나, 승인되지 않은 기기·다른 사용자 기기의 서명이면 거부합니다.
+  const signed = await checkSignedRequest({ supabase: active.supabase, identity, headers: request.headers,
+    method: request.method, path: routeId ? `/api/notes/${routeId}` : '/api/notes', body: request.body });
+  if (signed.error) return json(response, 401, { error: signed.error });
 
   if (request.method === 'GET' && !routeId) {
     const { data, error } = await active.supabase

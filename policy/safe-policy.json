@@ -1,8 +1,8 @@
 {
   "schema": "aleph.safe-policy.v1",
-  "version": "stage9-985f492",
-  "verifiedAt": "2026-10-13T00:00:00.000Z",
-  "note": "9단계까지 심판 통과(100점)를 확인한 뒤 만든 침해 전 안전 정책 사본입니다. 직접 고치지 않습니다.",
+  "version": "stage11-device-approval",
+  "verifiedAt": "2026-10-13T11:00:13.959Z",
+  "note": "10단계까지 심판 통과(100점)를 확인한 규칙에 11단계 기기 승인 규칙을 더해 로컬 시험으로 검증한 안전 정책 사본입니다. 직접 고치지 않습니다.",
   "rules": [
     {
       "id": "starter.deny",
@@ -84,7 +84,21 @@
       "effect": "deny",
       "target": "공개 키(anon)로 notes 표 직접 읽기",
       "source": "supabase/step4-policy.sql"
+    },
+    {
+      "id": "request_integrity",
+      "layer": "decider",
+      "effect": "deny",
+      "target": "메서드·경로 모양·실제 경로·쿼리 지문이 서로 맞지 않는 요청(서명 뒤 변경)",
+      "reasonCode": "request_tampered"
+    },
+    {
+      "id": "api.device_signature",
+      "layer": "api",
+      "effect": "deny",
+      "target": "접속 앱 서명이 맞지 않거나 승인되지 않은 기기의 서명 요청",
+      "status": 401
     }
   ],
-  "rulesSha256": "8415c75cf5cd7c5c547bc4c7ee6dbecd0a0c806c11a3c07326eda4df9952e4e2"
+  "rulesSha256": "17335740c88168e7d9e9911c8fb99c800949a0cd4528709a3abe9b6785266490"
 }

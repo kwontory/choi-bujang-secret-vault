@@ -4,6 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BYTE BACK | 로그인 자료실</title>
+  <meta name="theme-color" content="#101a28">
+  <meta name="description" content="로그인하고 서버가 이 기기를 승인한 뒤에만 여는 BYTE BACK 접속 앱">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
   <style>
     :root { color-scheme: dark; font-family: system-ui, sans-serif; }
     * { box-sizing: border-box; }
@@ -30,13 +35,20 @@
     li span { display: block; color: #bfd0e5; white-space: pre-wrap; }
     li .row { margin-top: 14px; }
     [hidden] { display: none !important; }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; background: #32465d; color: #ecf4ff; font-size: 14px; font-weight: 700; }
+    .badge.ok { background: #2f7a5b; }
+    .badge.wait { background: #8a6a24; }
+    .badge.no { background: #9a4655; }
+    #offline { padding: 10px 14px; border-radius: 10px; background: #5b3a1e; color: #ffe6c8; }
+    code { overflow-wrap: anywhere; }
   </style>
 </head>
 <body>
   <main>
-    <div class="eyebrow">BYTE BACK · 5단계 서버 단일 자료 요청</div>
+    <div class="eyebrow">BYTE BACK · 11단계 나만의 접속 앱</div>
     <h1>로그인 자료실</h1>
-    <p>Supabase Auth로 로그인하고, 서버가 검증한 사용자 본인의 가상 메모만 관리합니다.</p>
+    <p>Supabase Auth로 로그인하고, 서버가 이 기기를 승인된 기기로 확인한 뒤에만 본인의 가상 메모를 엽니다.</p>
+    <p id="offline" role="status" hidden>지금은 오프라인입니다. 다시 연결되면 로그인과 기기 승인 확인을 새로 합니다. 오프라인에서는 보호 자료를 보여 주지 않습니다.</p>
 
     <section id="auth-panel" class="panel">
       <h2>이메일 로그인</h2>
@@ -50,6 +62,18 @@
         <button id="logout" type="button" class="secondary">로그아웃</button>
       </div>
       <p id="status" role="status" aria-live="polite"></p>
+    </section>
+
+    <section id="device-panel" class="panel" hidden>
+      <h2>이 기기 승인</h2>
+      <p>기기 승인 상태: <span id="device-badge" class="badge">확인 전</span></p>
+      <p id="device-detail">로그인한 뒤 이 기기의 승인 상태를 서버에 확인합니다.</p>
+      <p id="install-note">앱으로 설치했는지와 상관없이, 서버가 승인한 기기로 확인해야 자료실이 열립니다. 설치 표시나 승인 요청 버튼만으로는 기기 확인이 끝나지 않습니다.</p>
+      <div class="row">
+        <button id="request-device" type="button">기기 승인 요청</button>
+        <button id="check-device" type="button" class="secondary">승인 상태 다시 확인</button>
+      </div>
+      <p>기기 ID: <code id="device-id">-</code> · 기기 키는 이 화면의 메모리에만 있고 브라우저 저장소에 넣지 않습니다. 새로고침하면 새 기기 키가 만들어져 다시 승인받아야 합니다.</p>
     </section>
 
     <section id="vault" class="panel" hidden>
@@ -79,15 +103,57 @@
     const noteBody = document.querySelector('#note-body');
     const saveNote = document.querySelector('#save-note');
     const cancelEdit = document.querySelector('#cancel-edit');
+    const devicePanel = document.querySelector('#device-panel');
+    const deviceBadge = document.querySelector('#device-badge');
+    const deviceDetail = document.querySelector('#device-detail');
+    const deviceIdText = document.querySelector('#device-id');
+    const requestDevice = document.querySelector('#request-device');
+    const checkDevice = document.querySelector('#check-device');
+    const offline = document.querySelector('#offline');
     let session = null;
     let currentNotes = [];
+    let approved = false;
+
+    // 기기 키: 이 화면의 메모리에서만 만들고(개인키는 내보낼 수 없음) 브라우저 저장소에는 넣지 않습니다.
+    const encoder = new TextEncoder();
+    const b64url = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes)))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const sha256Hex = async text => [...new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(text)))]
+      .map(byte => byte.toString(16).padStart(2, '0')).join('');
+    const deviceKey = (async () => {
+      const pair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign', 'verify']);
+      const { kty, crv, x, y } = await crypto.subtle.exportKey('jwk', pair.publicKey);
+      const publicKey = { kty, crv, x, y };
+      const id = (await sha256Hex(`${crv}.${x}.${y}`)).slice(0, 16);
+      return { privateKey: pair.privateKey, publicKey, id };
+    })();
+    const sign = async message => {
+      const { privateKey } = await deviceKey;
+      return b64url(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, privateKey, encoder.encode(message)));
+    };
+    const deviceProof = async action => {
+      const { publicKey, id } = await deviceKey;
+      const timestamp = String(Date.now());
+      return { publicKey, timestamp, signature: await sign(`aleph-device-v1|${action}|${id}|${timestamp}`) };
+    };
+    const signedHeaders = async (method, path, body) => {
+      const { id } = await deviceKey;
+      const timestamp = String(Date.now());
+      const bodySha256 = await sha256Hex(body ?? '');
+      return { 'X-Aleph-Device': id, 'X-Aleph-Timestamp': timestamp,
+        'X-Aleph-Signature': await sign(`aleph-request-v1|${method}|${path}|${bodySha256}|${timestamp}|${id}`) };
+    };
 
     const api = async (path = '', options = {}) => {
+      // 서버가 승인한 기기로 확인되기 전에는 보호 자료를 요청하지 않습니다.
+      if (!approved) throw new Error('device_not_approved');
+      const method = options.method ?? 'GET';
       const requestOptions = {
         ...options,
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
+          ...(await signedHeaders(method, `/api/notes${path}`, options.body)),
           ...options.headers,
         },
       };
@@ -154,23 +220,92 @@
       renderNotes();
     };
 
+    const closeVault = () => {
+      approved = false;
+      vault.hidden = true;
+      currentNotes = [];
+      notes.replaceChildren();
+    };
+
+    const showDevice = (label, kind, detail) => {
+      deviceBadge.textContent = label;
+      deviceBadge.className = `badge ${kind}`;
+      deviceDetail.textContent = detail;
+    };
+
+    const deviceCall = async (action) => {
+      const response = await fetch(`/api/device/${action}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify(await deviceProof(action)),
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(body?.error ?? `request_failed_${response.status}`);
+      return body;
+    };
+
+    // 승인 여부는 서버와 판정기가 정합니다. 서버 응답이 approved 이고 판정이 allow 일 때만 자료실을 엽니다.
+    const refreshDevice = async () => {
+      closeVault();
+      if (!session) return;
+      if (!navigator.onLine) return showDevice('오프라인', 'no', '연결되면 다시 확인합니다.');
+      try {
+        const result = await deviceCall('status');
+        if (result.approved === true && result.decision === 'allow') {
+          approved = true;
+          showDevice('승인됨', 'ok', '서버가 이 기기를 승인된 기기로 확인했고 판정기가 허용했습니다.');
+          vault.hidden = false;
+          await loadNotes();
+        } else if (result.status === 'pending') {
+          showDevice('승인 대기', 'wait', '승인 요청이 접수됐습니다. 관리자가 승인한 뒤 「승인 상태 다시 확인」을 누르세요.');
+        } else if (result.status === 'revoked') {
+          showDevice('회수됨', 'no', '이 기기의 승인이 회수되어 자료실을 열 수 없습니다.');
+        } else {
+          showDevice('미승인', 'no', '이 기기는 아직 승인 요청 전입니다. 「기기 승인 요청」을 누르세요.');
+        }
+      } catch (error) {
+        showDevice('확인 실패', 'no', `서버에서 승인 상태를 확인하지 못했습니다: ${error.message}`);
+      }
+    };
+
     const showSession = async nextSession => {
       session = nextSession;
       const active = Boolean(session);
       loginForm.hidden = active;
       signedIn.hidden = !active;
-      vault.hidden = !active;
+      devicePanel.hidden = !active;
+      closeVault();
       status.textContent = '';
       resetEditor();
       if (active) {
         sessionText.textContent = `${session.user.email} 계정으로 로그인했습니다.`;
-        try { await loadNotes(); } catch (error) { status.textContent = `자료 조회 실패: ${error.message}`; }
+        await refreshDevice();
       } else {
         sessionText.textContent = '';
-        currentNotes = [];
-        notes.replaceChildren();
+        showDevice('확인 전', '', '로그인한 뒤 이 기기의 승인 상태를 서버에 확인합니다.');
       }
     };
+
+    requestDevice.addEventListener('click', async () => {
+      if (!session) return;
+      try {
+        const result = await deviceCall('register');
+        status.textContent = '기기 승인 요청을 보냈습니다. 요청만으로는 승인되지 않습니다.';
+        if (result.status === 'pending') showDevice('승인 대기', 'wait', '관리자가 승인한 뒤 「승인 상태 다시 확인」을 누르세요.');
+        else await refreshDevice();
+      } catch (error) { status.textContent = `승인 요청 실패: ${error.message}`; }
+    });
+    checkDevice.addEventListener('click', refreshDevice);
+
+    const showNetwork = () => {
+      offline.hidden = navigator.onLine;
+      if (!navigator.onLine) closeVault();
+    };
+    addEventListener('online', () => { showNetwork(); refreshDevice(); });
+    addEventListener('offline', showNetwork);
+    showNetwork();
+    deviceKey.then(({ id }) => { deviceIdText.textContent = id; });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 
     loginForm.addEventListener('submit', async event => {
       event.preventDefault();
