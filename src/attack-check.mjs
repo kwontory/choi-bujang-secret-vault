@@ -13,8 +13,9 @@ async function probe(base, path, headers = {}, caseId) {
     const text = await res.text();
     let ready; try { ready = JSON.parse(text).ready; } catch {}
     let approved; try { approved = JSON.parse(text).approved; } catch {}
+    let ops = false; try { ops = JSON.parse(text).schema === 'aleph.ops.v1'; } catch {}
     let manifest = false; try { const m = JSON.parse(text); manifest = Boolean(m.name && m.start_url && m.display === 'standalone'); } catch {}
-    return { ran: true, status: res.status, ready, approved, manifest, hasNotes: /"content"\s*:|"body"\s*:/u.test(text) };
+    return { ran: true, status: res.status, ready, approved, ops, manifest, hasNotes: /"content"\s*:|"body"\s*:/u.test(text) };
   } catch (error) {
     return { ran: false, error: String(error?.message || error).slice(0, 80) };
   }
@@ -45,6 +46,7 @@ export async function runAttackChecks(baseUrl) {
   out.push(attempt('s10-restore-unauth', 10, '로그인 없는 복원 요청 거부', await probe(base, `/api/restore/notes/${TEST_UUID}`, {}, 's10-restore-unauth'), denied));
   out.push(attempt('s11-device', 11, '승인 전 기기 상태(approved=false)', await probe(base, '/api/device/status', {}, 's11-device'), r => r.status === 200 && r.approved === false && !r.hasNotes));
   out.push(attempt('s11-app-manifest', 11, '설치형 앱 manifest 제공', await probe(base, '/manifest.json', {}, 's11-app-manifest'), r => r.status === 200 && r.manifest && !r.hasNotes));
+  out.push(attempt('s12-ops-summary', 12, '탈환 작전실 서버 요약(실제 실행·조회 결과)', await probe(base, '/api/checks?view=ops', {}, 's12-ops-summary'), r => r.status === 200 && r.ops === true && !r.hasNotes));
 
   // 가상 규칙 입력을 배포된 점검 API에서 실행하고, runner가 같은 HTTP 응답을 관측하게 한다.
   for (const [attackId, stage, expected] of [

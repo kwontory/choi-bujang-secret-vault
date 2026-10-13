@@ -20,7 +20,8 @@
     "restore:test": "node scripts/restore-test.mjs",
     "device:test": "node scripts/device-test.mjs",
     "app:client": "node scripts/app-client.mjs",
-    "routes:test": "node scripts/routes-test.mjs"
+    "routes:test": "node scripts/routes-test.mjs",
+    "ops:table": "node scripts/ops-table.mjs"
   },
   "engines": {
     "node": ">=22"

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BYTE BACK | 탈환 작전실</title>
+  <meta name="theme-color" content="#101a28">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/app.css">
+  <style>
+    main { max-width: 1080px; }
+    .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    .stat { padding: 16px; border: 1px solid #51667c; border-radius: 12px; background: #17263a; }
+    .stat b { display: block; font-size: 28px; margin-top: 4px; }
+    .stat small, .muted { color: #93a8c1; }
+    .wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #33475e; vertical-align: top; }
+    th { color: #8ad8df; font-weight: 700; white-space: nowrap; }
+    td.mono { font-family: ui-monospace, monospace; font-size: 12px; overflow-wrap: anywhere; }
+    .tag { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 12px; font-weight: 700; }
+    .ok { background: #1f5b45; color: #c9f5df; } .bad { background: #6b2532; color: #ffd6dd; } .skip { background: #3b4a5c; color: #dbe6f3; }
+    code { overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">BYTE BACK · 12단계 탈환 작전실</div>
+    <h1>탈환 작전실</h1>
+    <p>이 화면의 수치는 모두 지금 보낸 실제 요청의 응답에서 나옵니다. 화면 문구는 심판 통과 근거가 아니며, 실행하지 않은 시험은 <span class="tag skip">미실행</span>으로 남깁니다. 메모 본문·사용자 ID·기기 ID·토큰은 표시하지 않습니다.</p>
+    <p><a href="/" style="color:#8ad8df">← 자료실로 돌아가기</a> · <button id="rerun" type="button" class="secondary">다시 확인</button></p>
+
+    <section class="panel">
+      <h2>서버 요약</h2>
+      <p class="muted" id="summary-meta">서버 요약(GET /api/checks?view=ops)을 불러오는 중입니다.</p>
+      <div class="grid">
+        <div class="stat"><small>판정기 규칙(RULE_IDS)</small><b id="rule-count">–</b><span id="rule-fixtures" class="muted"></span></div>
+        <div class="stat"><small>탐지 규칙(조회 폭주, 고정 가상 사건)</small><b id="detect-state">–</b><span id="detect-note" class="muted"></span></div>
+        <div class="stat"><small>기기 회수 상태(승인 / 대기 / 회수)</small><b id="revoke-state">–</b><span id="revoke-note" class="muted"></span></div>
+        <div class="stat"><small>복구 버전(안전 정책 · 메모 사본)</small><b id="recovery-state">–</b><span id="recovery-note" class="muted"></span></div>
+      </div>
+      <details><summary class="muted">판정기 규칙 이름과 가상 판정 결과</summary><div class="wrap"><table id="fixture-table"></table></div></details>
+    </section>
+
+    <section class="panel">
+      <h2>1~11단계 실측 표</h2>
+      <p class="muted" id="table-meta">요청을 보내는 중입니다.</p>
+      <div class="grid" style="margin-bottom:12px">
+        <div class="stat"><small>확인(기대와 일치)</small><b id="count-ok">–</b></div>
+        <div class="stat"><small>불일치</small><b id="count-bad">–</b></div>
+        <div class="stat"><small>미실행</small><b id="count-skip">–</b></div>
+      </div>
+      <div class="wrap"><table id="case-table"></table></div>
+      <p class="muted">로그인·승인 기기가 필요한 시험은 이 화면에서 보내지 않습니다. 시험 계정으로 <code>npm run ops:table</code> 을 실행하면 같은 표에 실측 결과를 남깁니다. 심판 총공세 41종은 심판이 실행하며, 이 화면은 그 결과를 대신하지 않습니다.</p>
+    </section>
+  </main>
+  <script type="module" src="/ops.js"></script>
+</body>
+</html>

@@ -1,6 +1,31 @@
-# BYTE BACK 방어전 · 11단계 저장점
+# BYTE BACK 방어전 · 12단계 저장점
 
 Supabase Auth 로그인과 서버 토큰 검증을 유지하면서, 로그인·메모 CRUD를 Vercel 서버 함수로 통일했습니다. 비밀번호, JWT, 서버 전용 키는 저장소·응답·로그에 넣지 않습니다.
+
+## 무엇을 누가 만들었나 (출처)
+
+| 출처 | 들어 있는 것 |
+|---|---|
+| 학생이 만든 것 | 판정기 `src/decider.mjs`, 탐지 규칙 `src/detect.mjs`, 접속 앱 화면 `public/`(자료실 `index.html`·탈환 작전실 `ops.html`), 자료실 서버 함수 `api/`·`src/`, 복구 `src/note-backup.mjs`·`src/policy-restore.mjs`, 점검 `src/attack-check.mjs`·`scripts/ops-table.mjs`, XDR 판정 `xdr/*/decide.mjs` |
+| 제공 엔진 | **ALEPH SDP 엔진**. 운영 반의 로그인 세션 확인, 기기 등록, 판정기 호출과 집행, 사건 전달, 감사 기록 보관은 엔진이 맡습니다. 이 저장소에는 엔진 코드가 없고, 판정기는 `docs/DECIDER_REQUEST.md` 계약의 요청만 받습니다. |
+| 외부 서비스 | Supabase Auth·DB(로그인·메모 저장), Vercel(배포). 비밀값은 Vercel 환경변수에만 두고 저장소에 포장하지 않습니다. |
+
+## 설치·실행·중지·복구 (검사한 커밋 기준)
+
+검사한 커밋은 `npm run bundle`이 만든 `artifacts/submission.json`의 `commit` 값이며, 배포의 `/aleph.json` `commit` 과 같아야 합니다.
+
+1. **설치:** `git clone https://github.com/kwontory/choi-bujang-secret-vault && cd choi-bujang-secret-vault && git checkout <검사한 커밋>` → `npm install`. Node.js 22 이상.
+2. **DB 준비(한 번):** Supabase SQL Editor 에서 `supabase/step2.sql` → `step3.sql` → `step4-policy.sql`(·`step4-seed.sql`) → `step8-zones.sql` → `step10-backup.sql` → `step11-devices.sql` 순서로 검토 후 실행합니다.
+3. **실행:** Vercel 프로젝트에 이 저장소를 연결하고 환경변수 `SUPABASE_URL`, `SUPABASE_SECRET_KEY` 를 공식 입력란에만 넣은 뒤 배포합니다(빌드 `npm run build`, 화면 `public/`, 서버 함수 `api/`). 로컬 확인은 `npm test`(판정기·탐지·복구 연습, 인터넷 불필요).
+4. **점검:** 탈환 작전실 `/ops.html` 에서 서버 요약과 실측 표를 봅니다. 로그인 요청까지 실측하려면 시험 계정으로 `OPS_A_EMAIL=… OPS_A_PASSWORD=… [OPS_B_EMAIL=… OPS_B_PASSWORD=…] npm run ops:table`(비밀번호는 출력·저장하지 않음). 제출 묶음은 `npm run bundle`.
+5. **중지:** Vercel 에서 배포를 내리거나(Instant Rollback·프로젝트 일시 중지) 엔진 쪽 경로 허용을 끕니다. 특정 기기만 막을 때는 강사 계정으로 `PUT /api/admin/devices/:id` `{"status":"revoked"}`.
+6. **복구:** 검사한 커밋으로 되돌려 다시 배포합니다(`git checkout <검사한 커밋>` → 재배포). 메모 한 건은 `POST /api/restore/notes/:id`, 판정 규칙은 `npm run policy:diff` → `npm run policy:restore`. 복구 뒤에는 아래 「복구 뒤 1~9단계 재시험 순서」와 `npm run ops:table` 을 다시 실행합니다.
+
+## 12단계 탈환 작전실
+
+- `/ops.html`: 판정기 규칙(RULE_IDS 와 고정 가상 판정 결과), 탐지 규칙(조회 폭주 가상 사건), 기기 회수 상태(서버 저장소의 승인·대기·회수 건수), 복구 버전(안전 정책 사본 버전·메모 사본 수·마지막 복원)을 `GET /api/checks?view=ops`(내부 `src/ops-summary.mjs`) 실제 응답으로만 보여 줍니다. 조회하지 못한 항목은 「미실행」입니다. 메모 본문·사용자 ID·기기 ID·토큰은 표시하지 않습니다.
+- 같은 화면의 1~11단계 실측 표는 이 브라우저에서 로그인 없이 보낼 수 있는 정상·금지 요청(`public/ops-cases.js`)을 실제로 보내 기대 결과·실제 HTTP 결과·요청 ID(`x-vercel-id`)·확인 시각을 적습니다. 로그인·승인 기기가 필요한 시험과 심판 총공세 41종은 「미실행」으로 남기며 통과로 바꾸지 않습니다.
+- `npm run ops:table` 은 같은 표를 명령줄에서 만들고, 시험 계정을 넣으면 승인 기기의 정상 요청(목록·추가·조회·삭제·공지 읽기)과 금지 요청(전체 목록·공지 쓰기·강사 자료·서명 없음·서명 뒤 경로/본문 변경·위조 증표·다른 계정 메모)까지 실측해 `artifacts/ops-table.json`(커밋하지 않음)에 씁니다.
 
 ## 현재 작동하는 기능
 
@@ -13,6 +38,7 @@ Supabase Auth 로그인과 서버 토큰 검증을 유지하면서, 로그인·�
 - 9단계 탐지 `src/detect.mjs`: 같은 사용자의 10분 안 121건 이상 조회 + 낯선 네트워크일 때만 `propose_revocation`·`burst_read`·대상 기기 한 개.
 - 10단계 복구: 침해 전 사본·감사 기록, `POST /api/restore/notes/:id` 로 검증한 한 건만 복원, 안전 정책 사본 대조·복원(`npm run policy:diff`·`policy:restore`).
 - 전역 접근 통제: 모든 보호 API 가 앱 서명·서버 승인 기기를 확인한 뒤 같은 판정기에 물어 허용된 경로만 처리합니다. 선언된 경로(`allowedRoutes`) = 판정기 허용 = API 구현이며 `npm run routes:test`로 대조합니다. 내 메모 목록은 `GET /api/my/notes`(전체 목록 `GET /api/notes`와 구분, 거부), 새 메모는 `PUT /api/notes/<새 UUID>`.
+- 12단계 탈환 작전실: `/ops.html` 과 `npm run ops:table`(아래 「12단계 탈환 작전실」).
 - 11단계 설치형 웹앱(접속 앱): manifest(앱 이름·192/512 아이콘)·서비스 워커·오프라인 안내·기기 승인 화면. **서명 규약과 시험 명령은 `docs/APP_SIGNING.md`**. 승인은 서버(로그인·기기 개인키 증명·회수 여부)와 판정기 `decide()` 가 정하고, 승인된 기기에서만 자료실이 열림. 기기 키·토큰·승인 증표는 메모리에만 둠. 설치형 앱 서명 없는 보호 요청은 `403`, 서명 뒤 경로·본문 변경은 `401`, 판정기 `request_integrity` 는 경로·메서드 불일치를 거부.
 
 ## 다시 실행하기

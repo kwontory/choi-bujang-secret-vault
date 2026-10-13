@@ -39,7 +39,7 @@ export async function createAppDevice({ baseUrl, token }) {
     const response = await fetch(new URL(sendAs.path ?? path, baseUrl), { method,
       headers: { 'Content-Type': 'application/json', ...auth, ...sig, ...headers }, body: finalBody || undefined });
     const parsed = await response.json().catch(() => null);
-    return { status: response.status, error: parsed?.error ?? null, body: parsed };
+    return { status: response.status, error: parsed?.error ?? null, body: parsed, requestId: response.headers.get('x-vercel-id') };
   };
   return {
     deviceId,
