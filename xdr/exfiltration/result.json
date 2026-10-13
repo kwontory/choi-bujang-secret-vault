@@ -1,0 +1,191 @@
+{
+  "schema": "aleph.xdr.result.v1",
+  "moduleKey": "exfiltration",
+  "decisions": [
+    {
+      "alertId": "ex-01",
+      "action": "block",
+      "confidence": 0.94,
+      "reason": "처음 보는 목적지 대용량 전송: 레벨 12, 240MB·파일 200건 — 목적지 차단 후보"
+    },
+    {
+      "alertId": "ex-02",
+      "action": "block",
+      "confidence": 0.97,
+      "reason": "처음 보는 목적지 대용량 전송+업무 시간 밖 압축 반출: 레벨 12, 180MB·파일 1건 — 목적지 차단 후보"
+    },
+    {
+      "alertId": "ex-03",
+      "action": "block",
+      "confidence": 0.91,
+      "reason": "명령 통로 반복 유출: 레벨 11, 90MB·8회 — 목적지 차단 후보"
+    },
+    {
+      "alertId": "ex-04",
+      "action": "block",
+      "confidence": 0.94,
+      "reason": "처음 보는 목적지 대용량 전송: 레벨 12, 120MB·파일 60건 — 목적지 차단 후보"
+    },
+    {
+      "alertId": "ex-05",
+      "action": "block",
+      "confidence": 0.94,
+      "reason": "처음 보는 목적지 대용량 전송: 레벨 10, 70MB·파일 140건 — 목적지 차단 후보"
+    },
+    {
+      "alertId": "ex-06",
+      "action": "block",
+      "confidence": 0.94,
+      "reason": "명령 통로 반복 유출: 레벨 12, 210MB·15회 — 목적지 차단 후보"
+    },
+    {
+      "alertId": "ex-07",
+      "action": "block",
+      "confidence": 0.94,
+      "reason": "처음 보는 목적지 대용량 전송+업무 시간 밖 압축 반출: 레벨 11, 150MB·파일 3건 — 목적지 차단 후보"
+    },
+    {
+      "alertId": "ex-08",
+      "action": "block",
+      "confidence": 0.94,
+      "reason": "처음 보는 목적지 대용량 전송: 레벨 12, 320MB·파일 400건 — 목적지 차단 후보"
+    },
+    {
+      "alertId": "ex-09",
+      "action": "block",
+      "confidence": 0.94,
+      "reason": "처음 보는 목적지 대용량 전송+명령 통로 반복 유출: 레벨 10, 80MB·9회 — 목적지 차단 후보"
+    },
+    {
+      "alertId": "ex-10",
+      "action": "block",
+      "confidence": 0.94,
+      "reason": "처음 보는 목적지 대용량 전송+업무 시간 밖 압축 반출: 레벨 12, 110MB·파일 2건 — 목적지 차단 후보"
+    },
+    {
+      "alertId": "ex-11",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "유출 의심: 레벨 6, 8MB — 대용량·반복 아님, 막지 않고 사람 확인"
+    },
+    {
+      "alertId": "ex-12",
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "유출 의심: 레벨 7, 12MB — 대용량·반복 아님, 막지 않고 사람 확인"
+    },
+    {
+      "alertId": "ex-13",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "유출 의심: 레벨 5, 2MB — 대용량·반복 아님, 막지 않고 사람 확인"
+    },
+    {
+      "alertId": "ex-14",
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "유출 의심: 레벨 6, 0.4MB — 대용량·반복 아님, 막지 않고 사람 확인"
+    },
+    {
+      "alertId": "ex-15",
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "유출 의심: 레벨 8, 3MB — 대용량·반복 아님, 막지 않고 사람 확인"
+    },
+    {
+      "alertId": "ex-16",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "유출 의심: 레벨 6, 15MB — 대용량·반복 아님, 막지 않고 사람 확인"
+    },
+    {
+      "alertId": "ex-17",
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "유출 의심: 레벨 7, 6MB — 대용량·반복 아님, 막지 않고 사람 확인"
+    },
+    {
+      "alertId": "ex-18",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "유출 의심: 레벨 5, 0MB — 대용량·반복 아님, 막지 않고 사람 확인"
+    },
+    {
+      "alertId": "ex-19",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "유출 의심: 레벨 6, 0.1MB — 대용량·반복 아님, 막지 않고 사람 확인"
+    },
+    {
+      "alertId": "ex-20",
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "유출 의심: 레벨 7, 5MB — 대용량·반복 아님, 막지 않고 사람 확인"
+    },
+    {
+      "alertId": "ex-21",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 이벤트: 정보성 이벤트(레벨 3, 0MB) — 정상"
+    },
+    {
+      "alertId": "ex-22",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 이벤트: 정보성 이벤트(레벨 2, 0MB) — 정상"
+    },
+    {
+      "alertId": "ex-23",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 이벤트: 정보성 이벤트(레벨 3, 0MB) — 정상"
+    },
+    {
+      "alertId": "ex-24",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 이벤트: 정보성 이벤트(레벨 3, 0MB) — 정상"
+    },
+    {
+      "alertId": "ex-25",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 이벤트: 정보성 이벤트(레벨 2, 0MB) — 정상"
+    },
+    {
+      "alertId": "ex-26",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 이벤트: 정보성 이벤트(레벨 3, 0MB) — 정상"
+    },
+    {
+      "alertId": "ex-27",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 이벤트: 정보성 이벤트(레벨 3, 0MB) — 정상"
+    },
+    {
+      "alertId": "ex-28",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 이벤트: 정보성 이벤트(레벨 2, 0MB) — 정상"
+    },
+    {
+      "alertId": "ex-29",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 이벤트: 정보성 이벤트(레벨 3, 0MB) — 정상"
+    },
+    {
+      "alertId": "ex-30",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 이벤트: 정보성 이벤트(레벨 3, 0MB) — 정상"
+    }
+  ],
+  "counts": {
+    "block": 10,
+    "alert": 10,
+    "record": 10
+  }
+}

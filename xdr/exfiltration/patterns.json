@@ -1,0 +1,10 @@
+{
+  "moduleKey": "exfiltration",
+  "basis": "MITRE ATT&CK T1041 (Exfiltration Over C2 Channel) · T1048 (Exfiltration Over Alternative Protocol)",
+  "patterns": [
+    { "name": "처음 보는 목적지 대용량 전송", "match": "처음 보는·외부 목적지로 대용량(50MB 이상) 또는 많은 파일(50건 이상)이 한 번에 나감", "action": "block", "basis": "T1048 — 평소와 다른 경로·목적지로 자료를 대량 반출" },
+    { "name": "명령 통로 반복 유출", "match": "같은 목적지·명령 통로로 큰 전송이 5회 이상 반복됨", "action": "block", "basis": "T1041 — 명령 통로(C2)로 자료를 나눠 반복 유출" },
+    { "name": "업무 시간 밖 압축 반출", "match": "수업·업무 시간 밖이나 연속으로 압축 파일이 처음 보는 주소로 나감", "action": "block", "basis": "T1048 / T1560 Archive Collected Data — 압축해 묶은 뒤 반출" },
+    { "name": "유출 의심", "match": "T1041/T1048 태그 경보지만 작은 전송·1회성·실패·수업 자료 주소 등 신호가 약함", "action": "alert", "basis": "T1041 / T1048 태그 — 명확한 근거 없어 사람 확인" }
+  ]
+}

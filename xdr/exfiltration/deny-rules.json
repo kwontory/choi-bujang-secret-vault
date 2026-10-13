@@ -1,0 +1,137 @@
+{
+  "schema": "aleph.xdr.deny.v1",
+  "moduleKey": "exfiltration",
+  "ttlHours": 24,
+  "rules": [
+    {
+      "ruleId": "xdr.exfiltration.ex-01",
+      "decision": "deny",
+      "reasonCode": "exfiltration_destination_blocked",
+      "match": {
+        "dstip": "203.0.113.50"
+      },
+      "sourceAlertId": "ex-01",
+      "createdAt": "2026-09-27T00:16:03.000Z",
+      "expiresAt": "2026-09-28T00:16:03.000Z",
+      "confidence": 0.94,
+      "reason": "처음 보는 목적지 대용량 전송: 레벨 12, 240MB·파일 200건 — 목적지 차단 후보"
+    },
+    {
+      "ruleId": "xdr.exfiltration.ex-02",
+      "decision": "deny",
+      "reasonCode": "exfiltration_destination_blocked",
+      "match": {
+        "dstip": "198.51.100.40"
+      },
+      "sourceAlertId": "ex-02",
+      "createdAt": "2026-09-27T00:16:48.000Z",
+      "expiresAt": "2026-09-28T00:16:48.000Z",
+      "confidence": 0.97,
+      "reason": "처음 보는 목적지 대용량 전송+업무 시간 밖 압축 반출: 레벨 12, 180MB·파일 1건 — 목적지 차단 후보"
+    },
+    {
+      "ruleId": "xdr.exfiltration.ex-03",
+      "decision": "deny",
+      "reasonCode": "exfiltration_destination_blocked",
+      "match": {
+        "dstip": "203.0.113.50"
+      },
+      "sourceAlertId": "ex-03",
+      "createdAt": "2026-09-27T01:05:14.000Z",
+      "expiresAt": "2026-09-28T01:05:14.000Z",
+      "confidence": 0.91,
+      "reason": "명령 통로 반복 유출: 레벨 11, 90MB·8회 — 목적지 차단 후보"
+    },
+    {
+      "ruleId": "xdr.exfiltration.ex-04",
+      "decision": "deny",
+      "reasonCode": "exfiltration_destination_blocked",
+      "match": {
+        "dstip": "198.51.100.40"
+      },
+      "sourceAlertId": "ex-04",
+      "createdAt": "2026-09-27T01:20:07.000Z",
+      "expiresAt": "2026-09-28T01:20:07.000Z",
+      "confidence": 0.94,
+      "reason": "처음 보는 목적지 대용량 전송: 레벨 12, 120MB·파일 60건 — 목적지 차단 후보"
+    },
+    {
+      "ruleId": "xdr.exfiltration.ex-05",
+      "decision": "deny",
+      "reasonCode": "exfiltration_destination_blocked",
+      "match": {
+        "dstip": "203.0.113.55"
+      },
+      "sourceAlertId": "ex-05",
+      "createdAt": "2026-09-27T02:04:26.000Z",
+      "expiresAt": "2026-09-28T02:04:26.000Z",
+      "confidence": 0.94,
+      "reason": "처음 보는 목적지 대용량 전송: 레벨 10, 70MB·파일 140건 — 목적지 차단 후보"
+    },
+    {
+      "ruleId": "xdr.exfiltration.ex-06",
+      "decision": "deny",
+      "reasonCode": "exfiltration_destination_blocked",
+      "match": {
+        "dstip": "192.0.2.90"
+      },
+      "sourceAlertId": "ex-06",
+      "createdAt": "2026-09-27T03:02:19.000Z",
+      "expiresAt": "2026-09-28T03:02:19.000Z",
+      "confidence": 0.94,
+      "reason": "명령 통로 반복 유출: 레벨 12, 210MB·15회 — 목적지 차단 후보"
+    },
+    {
+      "ruleId": "xdr.exfiltration.ex-07",
+      "decision": "deny",
+      "reasonCode": "exfiltration_destination_blocked",
+      "match": {
+        "dstip": "198.51.100.45"
+      },
+      "sourceAlertId": "ex-07",
+      "createdAt": "2026-09-27T04:12:08.000Z",
+      "expiresAt": "2026-09-28T04:12:08.000Z",
+      "confidence": 0.94,
+      "reason": "처음 보는 목적지 대용량 전송+업무 시간 밖 압축 반출: 레벨 11, 150MB·파일 3건 — 목적지 차단 후보"
+    },
+    {
+      "ruleId": "xdr.exfiltration.ex-08",
+      "decision": "deny",
+      "reasonCode": "exfiltration_destination_blocked",
+      "match": {
+        "dstip": "203.0.113.60"
+      },
+      "sourceAlertId": "ex-08",
+      "createdAt": "2026-09-27T05:03:41.000Z",
+      "expiresAt": "2026-09-28T05:03:41.000Z",
+      "confidence": 0.94,
+      "reason": "처음 보는 목적지 대용량 전송: 레벨 12, 320MB·파일 400건 — 목적지 차단 후보"
+    },
+    {
+      "ruleId": "xdr.exfiltration.ex-09",
+      "decision": "deny",
+      "reasonCode": "exfiltration_destination_blocked",
+      "match": {
+        "dstip": "203.0.113.61"
+      },
+      "sourceAlertId": "ex-09",
+      "createdAt": "2026-09-27T06:08:12.000Z",
+      "expiresAt": "2026-09-28T06:08:12.000Z",
+      "confidence": 0.94,
+      "reason": "처음 보는 목적지 대용량 전송+명령 통로 반복 유출: 레벨 10, 80MB·9회 — 목적지 차단 후보"
+    },
+    {
+      "ruleId": "xdr.exfiltration.ex-10",
+      "decision": "deny",
+      "reasonCode": "exfiltration_destination_blocked",
+      "match": {
+        "dstip": "198.51.100.46"
+      },
+      "sourceAlertId": "ex-10",
+      "createdAt": "2026-09-27T07:01:05.000Z",
+      "expiresAt": "2026-09-28T07:01:05.000Z",
+      "confidence": 0.94,
+      "reason": "처음 보는 목적지 대용량 전송+업무 시간 밖 압축 반출: 레벨 12, 110MB·파일 2건 — 목적지 차단 후보"
+    }
+  ]
+}
