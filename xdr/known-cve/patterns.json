@@ -1,0 +1,11 @@
+{
+  "moduleKey": "known-cve",
+  "basis": "CVE-2021-44228 (Log4Shell, Log4j 원격 조회 악용) · MITRE ATT&CK T1190 (Exploit Public-Facing Application)",
+  "patterns": [
+    { "name": "머리글 원격 조회 구문", "match": "요청 머리글(User-Agent 등)에 jndi 형태의 완전한 원격 조회 구문(${jndi:ldap|ldaps|rmi|dns|iiop|nis|nds|corba|http://…})이 있음", "action": "block", "basis": "CVE-2021-44228: Log4j 가 기록하는 머리글 값의 JNDI 조회로 원격 코드를 불러옴 / T1190" },
+    { "name": "인자 원격 조회 구문", "match": "요청 주소의 경로·인자에 jndi 형태의 완전한 원격 조회 구문이 있음", "action": "block", "basis": "CVE-2021-44228: 기록되는 요청 인자의 JNDI 조회 악용 / T1190" },
+    { "name": "변형 조회 구문", "match": "${lower:j}·${::-j} 처럼 중첩 치환으로 jndi 글자를 숨긴 조회 구문", "action": "block", "basis": "CVE-2021-44228 우회 표기(중첩 lookup 으로 탐지 회피) / T1190" },
+    { "name": "취약점 점검 도구 흔적", "match": "알려진 취약점 점검 도구 이름·점검 표기가 있으나 완전한 조회 구문은 없음", "action": "alert", "basis": "T1190 을 노린 공개 취약점(CVE-2021-44228) 사전 점검 흔적" },
+    { "name": "불완전 조회 흔적", "match": "T1190 태그 경보에 CVE 번호·jndi 단어·잘린 조회 조각만 있고 완전한 원격 조회 구문은 없음", "action": "alert", "basis": "Wazuh 규칙의 T1190 태그 — 악용 구문이 없어 사람 확인 필요" }
+  ]
+}

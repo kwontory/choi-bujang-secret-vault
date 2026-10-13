@@ -1,0 +1,155 @@
+{
+  "schema": "aleph.xdr.result.v1",
+  "moduleKey": "known-cve",
+  "decisions": [
+    {
+      "alertId": "kc-01",
+      "action": "block",
+      "confidence": 0.93,
+      "reason": "머리글 원격 조회 구문: CVE-2021-44228 형태의 완전한 원격 조회 구문(레벨 13) — 차단 후보"
+    },
+    {
+      "alertId": "kc-02",
+      "action": "block",
+      "confidence": 0.93,
+      "reason": "인자 원격 조회 구문: CVE-2021-44228 형태의 완전한 원격 조회 구문(레벨 12) — 차단 후보"
+    },
+    {
+      "alertId": "kc-03",
+      "action": "block",
+      "confidence": 0.93,
+      "reason": "인자 원격 조회 구문: CVE-2021-44228 형태의 완전한 원격 조회 구문(레벨 12, 6회) — 차단 후보"
+    },
+    {
+      "alertId": "kc-04",
+      "action": "block",
+      "confidence": 0.93,
+      "reason": "머리글 원격 조회 구문: CVE-2021-44228 형태의 완전한 원격 조회 구문(레벨 13, 4회) — 차단 후보"
+    },
+    {
+      "alertId": "kc-05",
+      "action": "block",
+      "confidence": 0.96,
+      "reason": "인자 원격 조회 구문+취약점 점검 도구 흔적: CVE-2021-44228 형태의 완전한 원격 조회 구문(레벨 12) — 차단 후보"
+    },
+    {
+      "alertId": "kc-06",
+      "action": "block",
+      "confidence": 0.93,
+      "reason": "인자 원격 조회 구문: CVE-2021-44228 형태의 완전한 원격 조회 구문(레벨 11, 8회) — 차단 후보"
+    },
+    {
+      "alertId": "kc-07",
+      "action": "block",
+      "confidence": 0.93,
+      "reason": "머리글 원격 조회 구문: CVE-2021-44228 형태의 완전한 원격 조회 구문(레벨 12) — 차단 후보"
+    },
+    {
+      "alertId": "kc-08",
+      "action": "block",
+      "confidence": 0.93,
+      "reason": "머리글 원격 조회 구문+인자 원격 조회 구문: CVE-2021-44228 형태의 완전한 원격 조회 구문(레벨 10) — 차단 후보"
+    },
+    {
+      "alertId": "kc-09",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "불완전 조회 흔적: 완전한 원격 조회 구문 없음(레벨 6) — 막지 않고 사람 확인"
+    },
+    {
+      "alertId": "kc-10",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "불완전 조회 흔적: 완전한 원격 조회 구문 없음(레벨 5) — 막지 않고 사람 확인"
+    },
+    {
+      "alertId": "kc-11",
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "불완전 조회 흔적: 완전한 원격 조회 구문 없음(레벨 7) — 막지 않고 사람 확인"
+    },
+    {
+      "alertId": "kc-12",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "불완전 조회 흔적: 완전한 원격 조회 구문 없음(레벨 6) — 막지 않고 사람 확인"
+    },
+    {
+      "alertId": "kc-13",
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "취약점 점검 도구 흔적+불완전 조회 흔적: 완전한 원격 조회 구문 없음(레벨 5) — 막지 않고 사람 확인"
+    },
+    {
+      "alertId": "kc-14",
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "불완전 조회 흔적: 완전한 원격 조회 구문 없음(레벨 7) — 막지 않고 사람 확인"
+    },
+    {
+      "alertId": "kc-15",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "불완전 조회 흔적: 완전한 원격 조회 구문 없음(레벨 6) — 막지 않고 사람 확인"
+    },
+    {
+      "alertId": "kc-16",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "불완전 조회 흔적: 완전한 원격 조회 구문 없음(레벨 8) — 막지 않고 사람 확인"
+    },
+    {
+      "alertId": "kc-17",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 트래픽: 정보성 이벤트(레벨 3) — 정상 요청"
+    },
+    {
+      "alertId": "kc-18",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 트래픽: 정보성 이벤트(레벨 3) — 정상 요청"
+    },
+    {
+      "alertId": "kc-19",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 트래픽: 정보성 이벤트(레벨 3) — 정상 요청"
+    },
+    {
+      "alertId": "kc-20",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 트래픽: 정보성 이벤트(레벨 2) — 정상 요청"
+    },
+    {
+      "alertId": "kc-21",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 트래픽: 정보성 이벤트(레벨 3) — 정상 요청"
+    },
+    {
+      "alertId": "kc-22",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 트래픽: 정보성 이벤트(레벨 2) — 정상 요청"
+    },
+    {
+      "alertId": "kc-23",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 트래픽: 정보성 이벤트(레벨 3) — 정상 요청"
+    },
+    {
+      "alertId": "kc-24",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 트래픽: 정보성 이벤트(레벨 3) — 정상 요청"
+    }
+  ],
+  "counts": {
+    "block": 8,
+    "alert": 8,
+    "record": 8
+  }
+}
