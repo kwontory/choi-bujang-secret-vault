@@ -1,7 +1,7 @@
 // The student changes this check as each stage adds an attack to the same app.
 // Never return tokens, private keys, real names, or note bodies.
 export async function runAttackChecks(config) {
-  if (![1, 2, 3, 4].includes(config.step)) throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
+  if (![1, 2, 3, 4, 5, 6].includes(config.step)) throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
   let app;
   try {
     app = new URL(config.publicAppUrl);
@@ -37,7 +37,7 @@ export async function runAttackChecks(config) {
   const apiResponse = await fetch(new URL('/api/notes', app), {
     redirect: 'error', signal: AbortSignal.timeout(10000),
   });
-  if (config.step === 3 || config.step === 4) {
+  if (config.step >= 3) {
     let errorCode = null;
     try { errorCode = (await apiResponse.json())?.error ?? null; } catch { errorCode = null; }
     const attempts = [
@@ -50,11 +50,25 @@ export async function runAttackChecks(config) {
           ? `비로그인 요청이 JSON 오류로 거부됨 (HTTP ${apiResponse.status})`
           : `비로그인 요청 거부를 확인하지 못함 (HTTP ${apiResponse.status})` },
     ];
-    if (config.step === 4) attempts.push({
+    if (config.step >= 4) attempts.push({
       attackId: 'cross_owner_access',
       expected: 'A/B 로그인에서 상대 메모의 조회·수정·삭제가 거부',
       observed: 'A/B 실습 계정이 없어 직접 점검 미실행',
     });
+    if (config.step >= 6) {
+      // 로컬 판정기에 미등록 기기 가상 요청 한 건을 직접 넣어 본 결과입니다. 심판 판정이 아닙니다.
+      const { fixtureRequests } = await import('../scripts/fixture-7.mjs');
+      const { decide } = await import('./decider.mjs');
+      const { normal } = fixtureRequests();
+      const result = await decide({ ...normal, deviceRegistered: false });
+      attempts.push({
+        attackId: 'unregistered_device_read',
+        expected: '미등록 기기의 자료실 읽기 요청은 deny·device_not_registered',
+        observed: result?.decision === 'deny' && result?.reasonCode === 'device_not_registered'
+          ? '로컬 판정기 가상 요청에서 deny·device_not_registered 확인'
+          : `로컬 판정기 가상 요청 결과가 기대와 다름 (${result?.decision ?? '응답 없음'})`,
+      });
+    }
     return attempts;
   }
   let apiCount = null;
