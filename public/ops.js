@@ -23,7 +23,7 @@ async function loadSummary() {
   const revocation = data.revocation;
   $('revoke-state').textContent = revocation.status === 'checked'
     ? `${revocation.devices.approved} / ${revocation.devices.pending} / ${revocation.devices.revoked}` : '미실행';
-  $('revoke-note').textContent = revocation.status === 'checked' ? '서버 저장소의 기기 건수(개별 기기·사용자는 표시하지 않음)' : '서버 저장소를 조회하지 못했습니다';
+  $('revoke-note').textContent = revocation.status === 'checked' ? '서버 저장소의 기기 건수(개별 기기·사용자는 표시하지 않음)' : '서버의 기기 등록표(device_registrations)를 조회하지 못했습니다(표 미적용 또는 권한). 회수 기록이 없는 것으로 처리 중';
   const recovery = data.recovery;
   $('recovery-state').textContent = recovery.safePolicyVersion ?? '미실행';
   const backups = typeof recovery.backups === 'object' ? `사본 ${recovery.backups.count}건 · 최신 v${recovery.backups.latestVersion ?? '-'}` : '사본 조회 미실행';

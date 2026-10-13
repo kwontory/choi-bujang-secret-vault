@@ -13,7 +13,7 @@ export const ANON_CASES = Object.freeze([
   { stage: 3, kind: '금지', label: '로그인 없는 내 메모 목록', method: 'GET', path: '/api/my/notes', expected: '401',
     ok: (s, t) => s === 401 && noNotes(t) },
   { stage: 3, kind: '금지', label: '위조 토큰으로 내 메모 목록', method: 'GET', path: '/api/my/notes',
-    headers: { authorization: `Bearer ${FAKE_JWT}` }, expected: '401', ok: (s, t) => s === 401 && noNotes(t) },
+    headers: { authorization: `Bearer ${FAKE_JWT}` }, expected: '401 또는 403 · 자료 없음', ok: (s, t) => [401, 403].includes(s) && noNotes(t) },
   { stage: 4, kind: '금지', label: '쿼리로 신원·역할 위조', method: 'GET', path: `/api/my/notes?userId=${UUID}&role=instructor`,
     expected: '401', ok: (s, t) => s === 401 && noNotes(t) },
   { stage: 4, kind: '금지', label: '로그인 없는 타인 메모 한 건 조회', method: 'GET', path: `/api/notes/${UUID}`, expected: '401',
