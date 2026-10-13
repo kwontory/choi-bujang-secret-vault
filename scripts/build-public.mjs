@@ -9,7 +9,11 @@ if (!Number.isInteger(config.step) || config.step < 5 || config.step > 12) throw
 await mkdir(resolve(root, 'public'), { recursive: true });
 await writeFile(output, '{\n  "notes": []\n}\n', 'utf8');
 console.log('공개 data.json에서 가상 메모를 제거했습니다.');
-if (!process.argv.includes('--local')) {
+// Vercel 빌드(VERCEL=1)에서만 배포 식별 정보를 씁니다. 저장소를 새로 받아 로컬·격리 환경에서
+// npm run build 를 실행하면 Vercel 정보가 없으므로 aleph.json 쓰기만 건너뛰고 빌드는 끝냅니다.
+if (!process.argv.includes('--local') && process.env.VERCEL !== '1') {
+  console.log('Vercel 빌드 환경이 아니어서 public/aleph.json 은 만들지 않았습니다.');
+} else if (!process.argv.includes('--local')) {
   const identity = deploymentIdentity(process.env, config);
   await writeFile(resolve(root, 'public', 'aleph.json'),
     `${JSON.stringify(identity, null, 2)}\n`, 'utf8');

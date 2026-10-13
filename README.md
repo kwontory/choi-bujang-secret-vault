@@ -18,7 +18,7 @@ Supabase Auth 로그인과 서버 토큰 검증을 유지하면서, 로그인·�
 - 반 공지 API(`/api/announcements`, `/api/announcements/:id`)는 로그인한 사용자의 GET만 받고 쓰기는 `403 announcement_write_denied`입니다. 공지 수정은 강사 관리 경로 `PUT /api/admin/announcements/:id`에서만 하며, 서버에 저장된 강사 권한표(`class_instructors`)에 있는 학생 로그인 사용자만 통과하고 그 밖에는 `403 instructor_only`입니다. 강사 자료 API(`/api/materials/:id`)는 로그인 없으면 `401`, 있어도 `403 instructor_material_denied`입니다. 화면 메뉴나 요청 본문의 `role` 값은 믿지 않으며, 메모 본문에 `role`을 넣으면 `400`으로 거부합니다.
 - 9단계 탐지: `src/detect.mjs`의 `detect(events)`는 가상 사건에서 가명 사용자(`identity.sub`)·기기(`deviceId`)·요청 종류(`method`)·판정(`decision`)·시각·네트워크만 읽고, 메모 본문·토큰·실명은 읽거나 돌려주지 않습니다. 같은 사용자의 `GET`이 어느 10분 구간에서든 120건을 넘고, 네트워크 정보가 있으면 그 구간에 평소와 다른 네트워크 조회가 있을 때만 `{ action: 'propose_revocation', reasonCode: 'burst_read', subject, deviceId }`를 돌려줍니다. 평소 네트워크(`usual`) 조회는 다량 조회 수에 넣지 않고, 지역 값은 판단에 쓰지 않습니다. 대상 기기는 의심 구간에서 가장 많이 나온 확인된 가상 기기 한 개입니다. 그 밖에는 `{ action: 'observe' }`입니다. 이 결과는 판정기 응답과 별개이며, 판정기의 허용·거부 응답 형식은 바꾸지 않았습니다. 회수 API는 만들지 않았고 실제 회수와 경과 시간은 반 엔진과 심판이 확인합니다.
 - 10단계 복구: 메모를 만들 때, 그리고 사본이 없는 메모를 처음 고치거나 지우기 직전에 침해 전 사본(`note_backups`)을 남기고, 생성·수정·삭제·복구마다 감사 기록(`note_audit`, 본문 없이 해시만)을 덧붙입니다. 복구 경로 `POST /api/restore/notes/:id`는 사본을 다시 읽어 ID·소유자·내용 해시를 검증한 뒤 그 한 건만 되살립니다. 안전 정책 사본(`policy/safe-policy.json`)과 시험 정책(`policy/test-policy.json`)은 `npm run policy:diff`·`policy:restore`로 대조·복원합니다.
-- 11단계 접속 앱: `/`는 설치형 웹앱 설정(`/manifest.webmanifest`, 앱 이름 「BYTE BACK 접속 앱」, 아이콘)과 오프라인 안내(`/offline.html`, 서비스 워커 `/sw.js`는 안내 화면만 보관하고 API 응답·토큰·키는 저장하지 않음)를 갖췄습니다. 로그인 뒤 「이 기기 승인」 화면이 먼저 나오고, 서버가 이 기기를 승인된 기기로 확인하고 판정기가 `allow`할 때만 메모 자료실을 열고 메모를 불러옵니다. 승인 전에는 메모 요청 자체를 보내지 않습니다.
+- 11단계 접속 앱: `/`는 설치형 웹앱 설정(`/manifest.webmanifest`, 앱 이름 「BYTE BACK 접속 앱」, 텍스트 SVG 아이콘 `/icon.svg`)과 오프라인 안내(`/offline.html`, 서비스 워커 `/sw.js`는 안내 화면만 보관하고 API 응답·토큰·키는 저장하지 않음)를 갖췄습니다. 첫 화면부터 「이 기기 승인」 상태(`미승인`)와 승인 안내가 보이고, 로그인 뒤 서버가 이 기기를 승인된 기기로 확인하고 판정기가 `allow`할 때만 메모 자료실을 열고 메모를 불러옵니다. 승인 전에는 메모 요청 자체를 보내지 않습니다.
 - 기기 키는 화면 메모리에서만 만드는 내보낼 수 없는 P-256 키이며 브라우저 저장소(localStorage·sessionStorage·IndexedDB)·코드·Git·제출물에 넣지 않습니다. 새로고침하면 새 기기 키라 다시 승인받아야 합니다. 서버는 공개 키(x, y)와 16자리 기기 ID만 `device_registrations`에 둡니다.
 - 승인 흐름: 「기기 승인 요청」(`POST /api/device/register`, 서명으로 기기 증명) → `pending` 기록 → 관리자 승인(`PUT /api/admin/devices/:id`, 저장된 강사 권한표의 사용자만, 또는 Supabase SQL) → 「승인 상태 다시 확인」(`POST /api/device/status`) → 서버가 승인 기록·같은 공개 키·같은 사용자를 확인해 `deviceRegistered`를 정하고 `src/decider.mjs`의 `decide()`가 `allow`이면 자료실을 엽니다. 승인 요청 버튼이나 설치 표시(`display-mode`)만으로는 승인되지 않으며, 브라우저가 보낸 `status`·`approved`·`deviceRegistered`·`role`은 `400`으로 거부합니다.
 - 접속 앱의 메모 요청에는 기기 서명 머리글(`X-Aleph-Device`, `X-Aleph-Timestamp`, `X-Aleph-Signature`)이 붙고, 서명 문장에 메서드·경로·본문 해시·시각이 들어갑니다. 서명이 붙은 요청은 `api/notes.js`가 확인해 서명 뒤 경로·본문을 바꿨거나, 승인 전·회수된·다른 사용자 기기면 `401`로 거부합니다. 판정기에는 `request_integrity` 규칙을 더해 메서드·경로 모양·실제 경로·쿼리 지문이 서로 맞지 않는 요청을 `deny`·`request_tampered`로 거부합니다.
@@ -41,6 +41,12 @@ Supabase Auth 로그인과 서버 토큰 검증을 유지하면서, 로그인·�
 - `anon`에 메모 테이블 권한이 없고 `authenticated`에는 SELECT·INSERT·UPDATE·DELETE만 있는지 SQL 출력으로 확인합니다.
 - 브라우저 파일과 응답에 `SUPABASE_SECRET_KEY` 또는 서버 비밀키가 없는지 확인합니다.
 - `npm run test:step3`으로 발급자 정보, 실제 CRUD 경로, 공식 로그인 흐름, 서버 토큰 검증기 사용을 확인합니다.
+
+## 새로 받아 실행하기(로컬·격리 환경)
+
+- `npm install` → `npm test`(판정기·탐지·7단계 사건·정책 복원·메모 복구 로컬 연습, 인터넷 불필요) → `npm run build`(Vercel 밖에서는 `public/aleph.json`만 건너뜀).
+- `src/decider.mjs`, `src/detect.mjs`는 `import` 없는 한 파일이라 다른 파일·패키지·네트워크 없이 불러와 바로 답합니다.
+- `npm run bundle`의 자기 점검(`src/attack-check.mjs`)은 공개 HTTPS 주소로 GET 만 보내고, 연결이 막히면 멈추지 않고 `HTTP 0`(확인하지 못함)으로 기록합니다.
 
 ## 11단계 접속 앱 확인 순서
 

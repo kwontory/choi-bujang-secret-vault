@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="BYTE BACK 접속 앱">
+  <rect width="512" height="512" fill="#101a28"/>
+  <rect x="85" y="85" width="342" height="342" rx="64" fill="none" stroke="#58c3cc" stroke-width="22"/>
+  <circle cx="256" cy="230" r="72" fill="none" stroke="#ecf4ff" stroke-width="20"/>
+  <rect x="244" y="300" width="24" height="96" fill="#ecf4ff"/>
+</svg>

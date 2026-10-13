@@ -1,5 +1,15 @@
 // The student changes this check as each stage adds an attack to the same app.
 // Never return tokens, private keys, real names, or note bodies.
+// 연결이 막힌 환경(인터넷 없는 격리 실행 등)에서도 점검이 멈추지 않게, 요청 실패는 HTTP 0 으로 기록합니다.
+const nativeFetch = globalThis.fetch;
+const fetch = async (url, options) => {
+  try {
+    return await nativeFetch(url, options);
+  } catch {
+    return { ok: false, status: 0, json: async () => { throw new Error('network_unavailable'); }, text: async () => '' };
+  }
+};
+
 export async function runAttackChecks(config) {
   if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].includes(config.step)) throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
   let app;

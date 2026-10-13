@@ -7,8 +7,8 @@
   <meta name="theme-color" content="#101a28">
   <meta name="description" content="로그인하고 서버가 이 기기를 승인한 뒤에만 여는 BYTE BACK 접속 앱">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="icon" href="/icon-192.png" type="image/png">
-  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icon.svg">
   <style>
     :root { color-scheme: dark; font-family: system-ui, sans-serif; }
     * { box-sizing: border-box; }
@@ -64,14 +64,14 @@
       <p id="status" role="status" aria-live="polite"></p>
     </section>
 
-    <section id="device-panel" class="panel" hidden>
+    <section id="device-panel" class="panel">
       <h2>이 기기 승인</h2>
-      <p>기기 승인 상태: <span id="device-badge" class="badge">확인 전</span></p>
-      <p id="device-detail">로그인한 뒤 이 기기의 승인 상태를 서버에 확인합니다.</p>
+      <p>기기 승인 상태: <span id="device-badge" class="badge no">미승인</span></p>
+      <p id="device-detail">승인 안내: 로그인한 뒤 「기기 승인 요청」을 보내고, 관리자가 승인하면 「승인 상태 다시 확인」으로 자료실을 엽니다. 승인 전에는 보호 자료를 보여 주지 않습니다.</p>
       <p id="install-note">앱으로 설치했는지와 상관없이, 서버가 승인한 기기로 확인해야 자료실이 열립니다. 설치 표시나 승인 요청 버튼만으로는 기기 확인이 끝나지 않습니다.</p>
       <div class="row">
-        <button id="request-device" type="button">기기 승인 요청</button>
-        <button id="check-device" type="button" class="secondary">승인 상태 다시 확인</button>
+        <button id="request-device" type="button" disabled>기기 승인 요청</button>
+        <button id="check-device" type="button" class="secondary" disabled>승인 상태 다시 확인</button>
       </div>
       <p>기기 ID: <code id="device-id">-</code> · 기기 키는 이 화면의 메모리에만 있고 브라우저 저장소에 넣지 않습니다. 새로고침하면 새 기기 키가 만들어져 다시 승인받아야 합니다.</p>
     </section>
@@ -103,7 +103,6 @@
     const noteBody = document.querySelector('#note-body');
     const saveNote = document.querySelector('#save-note');
     const cancelEdit = document.querySelector('#cancel-edit');
-    const devicePanel = document.querySelector('#device-panel');
     const deviceBadge = document.querySelector('#device-badge');
     const deviceDetail = document.querySelector('#device-detail');
     const deviceIdText = document.querySelector('#device-id');
@@ -121,6 +120,7 @@
     const sha256Hex = async text => [...new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(text)))]
       .map(byte => byte.toString(16).padStart(2, '0')).join('');
     const deviceKey = (async () => {
+      if (!globalThis.crypto?.subtle) throw new Error('webcrypto_unavailable');
       const pair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign', 'verify']);
       const { kty, crv, x, y } = await crypto.subtle.exportKey('jwk', pair.publicKey);
       const publicKey = { kty, crv, x, y };
@@ -273,7 +273,8 @@
       const active = Boolean(session);
       loginForm.hidden = active;
       signedIn.hidden = !active;
-      devicePanel.hidden = !active;
+      requestDevice.disabled = !active;
+      checkDevice.disabled = !active;
       closeVault();
       status.textContent = '';
       resetEditor();
@@ -282,7 +283,7 @@
         await refreshDevice();
       } else {
         sessionText.textContent = '';
-        showDevice('확인 전', '', '로그인한 뒤 이 기기의 승인 상태를 서버에 확인합니다.');
+        showDevice('미승인', 'no', '승인 안내: 로그인한 뒤 「기기 승인 요청」을 보내고, 관리자가 승인하면 「승인 상태 다시 확인」으로 자료실을 엽니다. 승인 전에는 보호 자료를 보여 주지 않습니다.');
       }
     };
 
@@ -304,7 +305,8 @@
     addEventListener('online', () => { showNetwork(); refreshDevice(); });
     addEventListener('offline', showNetwork);
     showNetwork();
-    deviceKey.then(({ id }) => { deviceIdText.textContent = id; });
+    deviceKey.then(({ id }) => { deviceIdText.textContent = id; })
+      .catch(() => { deviceIdText.textContent = '이 브라우저에서는 기기 키를 만들 수 없어 승인할 수 없습니다'; });
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 
     loginForm.addEventListener('submit', async event => {

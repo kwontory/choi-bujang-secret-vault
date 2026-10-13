@@ -3,7 +3,7 @@
 // - 서버는 공개 키로 서명을 확인해 「그 기기가 맞는지」만 봅니다. 승인 여부는 서버 표(device_registrations)
 //   에 승인된 기록이 있는지로 정하고, 그 결과를 판정기(src/decider.mjs)에 넣어 최종 허용을 받습니다.
 // - 승인 버튼이나 설치 표시만으로는 승인되지 않습니다. 승인은 강사 관리 경로나 Supabase 에서만 합니다.
-import { createHash, randomUUID, webcrypto } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { decide } from './decider.mjs';
 
 export const DEVICE_ID = /^[0-9a-f]{16}$/u;
@@ -30,14 +30,30 @@ const isEmptyBody = body => body === undefined || body === null || body === ''
   || (typeof body === 'object' && !Array.isArray(body) && Object.keys(body).length === 0);
 export const bodySha256Of = body => sha256(isEmptyBody(body) ? '' : typeof body === 'string' ? body : JSON.stringify(body));
 
+const B64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+function base64urlBytes(text) {
+  const bytes = [];
+  let buffer = 0; let bits = 0;
+  for (const char of text) {
+    const value = B64_ALPHABET.indexOf(char);
+    if (value < 0) throw new TypeError('invalid_base64url');
+    buffer = (buffer << 6) | value; bits += 6;
+    if (bits >= 8) { bits -= 8; bytes.push((buffer >> bits) & 0xff); }
+  }
+  return new Uint8Array(bytes);
+}
+
 export async function verifySignature(jwk, message, signature, timestamp, now = Date.now()) {
   const at = Number(timestamp);
   if (!Number.isSafeInteger(at) || Math.abs(now - at) > MAX_SKEW_MS) return false;
   if (typeof signature !== 'string' || !/^[A-Za-z0-9_-]{40,200}$/u.test(signature)) return false;
   try {
-    const key = await webcrypto.subtle.importKey('jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
-    return await webcrypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, key,
-      Buffer.from(signature, 'base64url'), new TextEncoder().encode(message));
+    // 표준 Web Crypto(globalThis.crypto.subtle)만 씁니다. 없으면 서명을 확인할 수 없으므로 거부합니다.
+    const subtle = globalThis.crypto?.subtle;
+    if (!subtle) return false;
+    const key = await subtle.importKey('jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+    return await subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, key,
+      base64urlBytes(signature), new TextEncoder().encode(message));
   } catch {
     return false;
   }

@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build-public.mjs",
+    "test": "node scripts/decider-test.mjs && node scripts/detect-test.mjs && node scripts/fixture-7.mjs && node scripts/policy-test.mjs && node scripts/restore-test.mjs",
     "test:r5": "node --test test/r5.test.mjs",
     "test:step2": "node --test test/step2.test.mjs",
     "test:step3": "node --test test/step3.test.mjs",
