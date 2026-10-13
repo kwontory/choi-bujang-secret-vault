@@ -5,7 +5,7 @@
 //   deviceRegistered 로 넣어 allow 일 때만 승인합니다. 승인 버튼은 요청만 보내고, 설치 표시는 보지 않습니다.
 // - 서버가 내준 기기 승인 증표(grant)는 서버 비밀 키로 서명한 짧은 증표이며, 화면 메모리에만 둡니다.
 import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
-import { decide } from './decider.mjs';
+import { authorize } from './authorize.mjs';
 
 export const DEVICE_ID = /^[0-9a-f]{16}$/u;
 const B64URL = /^[A-Za-z0-9_-]{20,200}$/u;
@@ -119,18 +119,10 @@ export async function findRegistration(supabase, deviceId) {
   }
 }
 
-// 서버가 확인한 사실만 담아 판정기에 묻습니다. 브라우저가 보낸 승인 여부는 넣지 않습니다.
-export async function askDecider({ userId, deviceId, registered, now = new Date() }) {
-  const request = {
-    schema: 'aleph.decision.v1', requestId: randomUUID(), classId: 'student_app',
-    projectId: 'choi-bujang-secret-vault', subjectId: sha256(`subject:${userId}`).slice(0, 32),
-    deviceId, service: 'notes', method: 'GET', path: '/notes/app', route: 'GET /notes/:id',
-    queryLength: 0, querySha256: EMPTY_SHA256, at: now.toISOString(), policyRevision: 1,
-    deviceRegistered: registered === true,
-    stepUp: { verified: false, authAgeSeconds: null }, recentEvents: [],
-    signals: { source: 'none', region: 'unknown', network: 'unknown', hour: now.getUTCHours() },
-  };
-  return decide(request);
+// 서버가 확인한 사실만 담아 판정기에 묻습니다(전역 접근 통제 src/authorize.mjs 와 같은 방식).
+export async function askDecider({ userId, deviceId, registered, action = 'status', now = new Date() }) {
+  return authorize({ identity: { userId }, method: 'POST', apiPath: `/api/device/${action}`, deviceId,
+    deviceRegistered: registered === true, now });
 }
 
 // 보호 요청의 기기 서명을 확인합니다.

@@ -1,7 +1,7 @@
 {
   "schema": "aleph.safe-policy.v1",
-  "version": "stage11-device-approval",
-  "verifiedAt": "2026-10-13T11:00:13.959Z",
+  "version": "stage11-global-guard",
+  "verifiedAt": "2026-10-13T12:32:41.150Z",
   "note": "10단계까지 심판 통과(100점)를 확인한 규칙에 11단계 기기 승인 규칙을 더해 로컬 시험으로 검증한 안전 정책 사본입니다. 직접 고치지 않습니다.",
   "rules": [
     {
@@ -98,7 +98,42 @@
       "effect": "deny",
       "target": "접속 앱 서명이 맞지 않거나 승인되지 않은 기기의 서명 요청",
       "status": 401
+    },
+    {
+      "id": "zone_my_notes_owner_list",
+      "layer": "decider",
+      "effect": "allow_only",
+      "service": "my_notes",
+      "allow": [
+        "GET /my/notes"
+      ]
+    },
+    {
+      "id": "zone_restore_verified_backup",
+      "layer": "decider",
+      "effect": "allow_only",
+      "service": "restore",
+      "allow": [
+        "POST /restore/notes/:id"
+      ]
+    },
+    {
+      "id": "zone_device_approval",
+      "layer": "decider",
+      "effect": "allow_only",
+      "service": "device",
+      "allow": [
+        "POST /device/register",
+        "POST /device/status"
+      ]
+    },
+    {
+      "id": "api.global_guard",
+      "layer": "api",
+      "effect": "deny",
+      "target": "앱 서명·서버 승인 기기 확인 뒤 판정기가 허용하지 않은 보호 요청",
+      "status": 403
     }
   ],
-  "rulesSha256": "e6b9a6a8ea4724a9f3133ff72bd67bedff5bd17780465b390b26eb76f6112cfd"
+  "rulesSha256": "6cc281cdbd463a9f70379b2b860475cd3d97554a671480def09c7cb087fc5c88"
 }

@@ -13,8 +13,12 @@
     "GET /api/notes/:id",
     "PUT /api/notes/:id",
     "DELETE /api/notes/:id",
+    "GET /api/my/notes",
     "GET /api/announcements",
-    "GET /api/announcements/:id"
+    "GET /api/announcements/:id",
+    "POST /api/restore/notes/:id",
+    "POST /api/device/register",
+    "POST /api/device/status"
   ],
   "originalApiUrl": "https://arsjjhghidyozzvknmqn.supabase.co/rest/v1/notes",
   "restoreRoute": "POST /api/restore/notes/:id"

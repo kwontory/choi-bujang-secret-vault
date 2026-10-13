@@ -96,6 +96,41 @@
       "effect": "deny",
       "target": "접속 앱 서명이 맞지 않거나 승인되지 않은 기기의 서명 요청",
       "status": 401
+    },
+    {
+      "id": "zone_my_notes_owner_list",
+      "layer": "decider",
+      "effect": "allow_only",
+      "service": "my_notes",
+      "allow": [
+        "GET /my/notes"
+      ]
+    },
+    {
+      "id": "zone_restore_verified_backup",
+      "layer": "decider",
+      "effect": "allow_only",
+      "service": "restore",
+      "allow": [
+        "POST /restore/notes/:id"
+      ]
+    },
+    {
+      "id": "zone_device_approval",
+      "layer": "decider",
+      "effect": "allow_only",
+      "service": "device",
+      "allow": [
+        "POST /device/register",
+        "POST /device/status"
+      ]
+    },
+    {
+      "id": "api.global_guard",
+      "layer": "api",
+      "effect": "deny",
+      "target": "앱 서명·서버 승인 기기 확인 뒤 판정기가 허용하지 않은 보호 요청",
+      "status": 403
     }
   ],
   "otherServices": {

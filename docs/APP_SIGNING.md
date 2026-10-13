@@ -1,6 +1,6 @@
 # 설치형 앱(접속 앱) 서명 규약 · 11단계
 
-배포 주소 `/`는 설치형 웹앱입니다(`/manifest.webmanifest`, 앱 이름 「BYTE BACK 접속 앱」, 아이콘 192·512 PNG, 오프라인 안내 `/offline.html`, 서비스 워커 `/sw.js`). 설치 여부는 기기 확인에 쓰지 않습니다. 11단계부터 **보호 요청(`/api/notes`, `/api/notes/:id`)은 서버가 승인한 기기의 앱 서명이 있어야** 합니다.
+배포 주소 `/`는 설치형 웹앱입니다(`/manifest.webmanifest`, 앱 이름 「BYTE BACK 접속 앱」, 아이콘 192·512 PNG, 오프라인 안내 `/offline.html`, 서비스 워커 `/sw.js`). 설치 여부는 기기 확인에 쓰지 않습니다. 11단계부터 **모든 보호 요청(아래 경로 표의 메모·내 목록·반 공지·복구)은 서버가 승인한 기기의 앱 서명이 있어야** 하고, 서명을 확인한 뒤 서버가 같은 판정기(`src/decider.mjs`)에 다시 물어 허용된 경로만 처리합니다(전역 접근 통제, `src/api-guard.mjs`).
 
 ## 1. 기기 키
 
@@ -31,11 +31,24 @@ X-Aleph-Signature: base64url(ECDSA-P256-SHA256(개인키,
                    "aleph-request-v1|<METHOD>|<경로>|<sha256hex(본문 JSON 문자열, 없으면 빈 문자열)>|<timestamp>|<deviceId>"))
 ```
 
-`<경로>`는 쿼리 없는 실제 경로입니다(예: `/api/notes`, `/api/notes/<id>`).
+`<경로>`는 쿼리 없는 실제 경로입니다(예: `/api/my/notes`, `/api/notes/<id>`).
+
+### 선언된 경로 = 판정기 허용 = API (aleph.config.json `allowedRoutes`)
+
+| 경로 | 판정기 규칙 | 용도 |
+|---|---|---|
+| `GET /api/my/notes` | `zone_my_notes_owner_list` | 내 메모 목록(전체 목록과 구분, 서버가 `owner_id`로 거름) |
+| `GET·PUT·DELETE /api/notes/:id` | `zone_notes_item_only` | 메모 한 건 조회·수정·삭제, 새 메모 만들기는 `PUT /api/notes/<새 UUID>` |
+| `GET /api/announcements`, `GET /api/announcements/:id` | `zone_announcements_read_only` | 반 공지 읽기 |
+| `POST /api/restore/notes/:id` | `zone_restore_verified_backup` | 10단계 한 건 복구 |
+| `POST /api/device/register`, `POST /api/device/status` | `zone_device_approval` | 기기 승인 요청·상태 확인 |
+
+선언하지 않은 경로는 판정기가 거부합니다: 전체 목록·ID 없는 생성 `GET·POST /api/notes` → `403 note_list_denied`, 반 공지 쓰기 → `403 announcement_write_denied`, 강사 자료 `/api/materials/:id` → `403 instructor_material_denied`, 그 밖 → `starter_not_ready`. 강사의 공지 수정·기기 회수는 판정기가 아닌 서버 관리 경로(`/api/admin/*`, 저장된 강사 권한표)에서만 합니다. 대조 시험: `npm run routes:test`.
 
 | 요청 | 결과 |
 |---|---|
-| 승인된 기기의 올바른 서명 요청 | 기존과 같은 정상 결과(`200`·`201`, 다른 소유자 ID 는 `404`) |
+| 승인된 기기의 올바른 서명 요청(선언된 경로) | 정상 결과(`200`·`201`, 다른 소유자 ID 는 `404`) |
+| 승인된 기기의 서명 요청이지만 선언 밖 경로 | `403` + 판정기 사유(`note_list_denied` 등) |
 | 설치형 앱 서명 없이 보호 요청 | `403 device_signature_required` |
 | 서명 뒤 요청 경로 변경 | `401 device_signature_invalid` |
 | 서명 뒤 수정 본문 변경 | `401 device_signature_invalid` |

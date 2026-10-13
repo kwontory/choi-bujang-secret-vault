@@ -25,7 +25,7 @@ export async function requestApproval({ supabase, identity, body }) {
   if (await isRevoked(supabase, deviceId)) {
     return reply(403, { deviceId, status: 'revoked', approved: false, error: 'device_revoked' });
   }
-  const verdict = await askDecider({ userId: identity.userId, deviceId, registered: true });
+  const verdict = await askDecider({ userId: identity.userId, deviceId, registered: true, action: 'register' });
   if (verdict.decision !== 'allow') {
     return reply(403, { deviceId, status: 'denied', approved: false, decision: verdict.decision, reasonCode: verdict.reasonCode });
   }
@@ -47,7 +47,7 @@ export async function deviceStatus({ supabase, identity, body }) {
   const sameKey = Boolean(granted && granted.x === jwk.x && granted.y === jwk.y);
   const revoked = await isRevoked(supabase, deviceId);
   const registered = sameKey && !revoked;
-  const verdict = await askDecider({ userId: identity.userId, deviceId, registered });
+  const verdict = await askDecider({ userId: identity.userId, deviceId, registered, action: 'status' });
   return reply(200, {
     deviceId, status: revoked ? 'revoked' : registered ? 'approved' : 'not_registered',
     approved: registered && verdict.decision === 'allow', decision: verdict.decision, reasonCode: verdict.reasonCode,

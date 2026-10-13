@@ -1,6 +1,7 @@
 // 8단계 반 공지 구역(/api/announcements, /api/announcements/:id): 로그인한 사용자의 읽기(GET)만 허용합니다.
 // 공지 수정은 이 경로가 아니라 강사 관리 경로(/api/admin/announcements/:id)에서만 처리합니다.
 import { NOTICE_ID, json, publicNotice, serverRuntime } from '../src/zone-api.mjs';
+import { guardProtected } from '../src/api-guard.mjs';
 
 export default async function handler(request, response) {
   const active = serverRuntime();
@@ -17,6 +18,10 @@ export default async function handler(request, response) {
 
   const routeId = typeof request.query?.id === 'string' ? request.query.id : null;
   if (routeId && !NOTICE_ID.test(routeId)) return json(response, 400, { error: 'invalid_announcement_id' });
+  // 전역 접근 통제: 설치형 앱 서명·서버 승인 기기 확인 뒤 판정기(zone_announcements_read_only)에 묻습니다.
+  const guard = await guardProtected({ supabase: active.supabase, identity, request,
+    apiPath: routeId ? `/api/announcements/${routeId}` : '/api/announcements' });
+  if (guard.error) return json(response, guard.error.status, guard.error.body);
 
   if (!routeId) {
     const { data, error } = await active.supabase.from('class_notices')

@@ -53,7 +53,8 @@ const signedHeaders = async (method, path, body) => {
     'X-Aleph-Signature': await sign(`aleph-request-v1|${method}|${path}|${bodySha256}|${timestamp}|${id}`) };
 };
 
-const api = async (path = '', options = {}) => {
+// 보호 요청은 모두 선언된 경로(aleph.config.json allowedRoutes)로만, 앱 서명을 붙여 보냅니다.
+const api = async (apiPath, options = {}) => {
   if (!approved) throw new Error('device_not_approved');
   const method = options.method ?? 'GET';
   const requestOptions = {
@@ -61,13 +62,11 @@ const api = async (path = '', options = {}) => {
     headers: {
       'Content-Type': 'application/json',
       ...authHeaders(),
-      ...(await signedHeaders(method, `/api/notes${path}`, options.body)),
+      ...(await signedHeaders(method, apiPath, options.body)),
       ...options.headers,
     },
   };
-  const response = path
-    ? await fetch(`/api/notes${path}`, requestOptions)
-    : await fetch('/api/notes', requestOptions);
+  const response = await fetch(apiPath, requestOptions);
   const body = response.status === 204 ? null : await response.json().catch(() => null);
   if (!response.ok) throw new Error(body?.error ?? `request_failed_${response.status}`);
   return body;
@@ -112,7 +111,7 @@ const renderNotes = () => {
     });
     remove.addEventListener('click', async () => {
       try {
-        await api(`/${note.id}`, { method: 'DELETE' });
+        await api(`/api/notes/${note.id}`, { method: 'DELETE' });
         await loadNotes();
         status.textContent = '가상 메모를 삭제했습니다.';
       } catch (error) { status.textContent = `삭제 실패: ${error.message}`; }
@@ -124,8 +123,23 @@ const renderNotes = () => {
 };
 
 const loadNotes = async () => {
-  currentNotes = await api();
+  currentNotes = await api('/api/my/notes');
   renderNotes();
+  await loadAnnouncements();
+};
+
+const announcementsList = document.querySelector('#announcements');
+const loadAnnouncements = async () => {
+  try {
+    const items = await api('/api/announcements');
+    announcementsList.replaceChildren(...(items.length ? items : [{ title: '등록된 반 공지가 없습니다.', body: '' }]).map(item => {
+      const li = document.createElement('li'); const title = document.createElement('strong'); const body = document.createElement('span');
+      title.textContent = item.title; body.textContent = item.body; li.append(title, body); return li;
+    }));
+  } catch (error) {
+    const li = document.createElement('li'); li.textContent = `반 공지를 불러오지 못했습니다: ${error.message}`;
+    announcementsList.replaceChildren(li);
+  }
 };
 
 const closeVault = () => {
@@ -133,6 +147,7 @@ const closeVault = () => {
   vault.hidden = true;
   currentNotes = [];
   notes.replaceChildren();
+  document.querySelector('#announcements')?.replaceChildren();
 };
 
 const showDevice = (label, kind, detail) => {
@@ -256,8 +271,9 @@ noteForm.addEventListener('submit', async event => {
   event.preventDefault();
   const id = noteId.value;
   try {
-    await api(id ? `/${id}` : '', {
-      method: id ? 'PUT' : 'POST',
+    // 새 메모도 자료 ID 하나를 고르는 경로로 만듭니다: PUT /api/notes/<새 UUID>
+    await api(`/api/notes/${id || crypto.randomUUID()}`, {
+      method: 'PUT',
       body: JSON.stringify({ title: noteTitle.value, body: noteBody.value }),
     });
     resetEditor();

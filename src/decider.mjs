@@ -9,10 +9,13 @@
 // zone_announcements_read_only      : 8단계 · 반 공지 구역은 읽기(GET)만, 쓰기는 누구에게나 거부
 // zone_instructor_materials_closed  : 8단계 · 강사 자료 구역은 판정기에서 모두 거부
 // request_integrity                 : 11단계 · 서명된 요청의 메서드·경로 모양·실제 경로가 서로 맞지 않으면 거부
+// zone_my_notes_owner_list          : 내 메모 목록(GET /my/notes)만 허용. 전체 목록(GET /notes)과 구분, 주인 비교는 API
+// zone_restore_verified_backup      : 10단계 복구 경로(POST /restore/notes/:id)만 허용
+// zone_device_approval              : 11단계 기기 승인 요청·상태 확인(POST /device/register, /device/status)만 허용
 export const RULE_IDS = Object.freeze([
   'starter.deny', 'device_registered', 'step_up_required',
   'zone_notes_item_only', 'zone_announcements_read_only', 'zone_instructor_materials_closed',
-  'request_integrity',
+  'request_integrity', 'zone_my_notes_owner_list', 'zone_restore_verified_backup', 'zone_device_approval',
 ]);
 
 const SCHEMA = 'aleph.decision.v1';
@@ -35,8 +38,26 @@ const MATERIALS_ZONE = Object.freeze({
   collection: Object.freeze([]), item: Object.freeze([]),
   collectionDenied: null, writeDenied: null, allDenied: 'instructor_material_denied',
 });
+const MY_NOTES_ZONE = Object.freeze({
+  ruleId: 'zone_my_notes_owner_list', prefix: '/my/notes',
+  collection: Object.freeze(['GET']), item: Object.freeze([]),
+  collectionDenied: null, writeDenied: null, allDenied: null,
+});
+const RESTORE_ZONE = Object.freeze({
+  ruleId: 'zone_restore_verified_backup', prefix: '/restore/notes',
+  collection: Object.freeze([]), item: Object.freeze(['POST']),
+  collectionDenied: null, writeDenied: null, allDenied: null,
+});
+const DEVICE_ZONE = Object.freeze({
+  ruleId: 'zone_device_approval', prefix: '/device',
+  collection: Object.freeze([]), item: Object.freeze(['POST']), itemNames: Object.freeze(['register', 'status']),
+  collectionDenied: null, writeDenied: null, allDenied: null,
+});
 const ZONES = Object.freeze({
   notes: NOTES_ZONE,
+  my_notes: MY_NOTES_ZONE,
+  restore: RESTORE_ZONE,
+  device: DEVICE_ZONE,
   announcements: ANNOUNCEMENTS_ZONE,
   notices: Object.freeze({ ...ANNOUNCEMENTS_ZONE, prefix: '/notices' }),
   materials: MATERIALS_ZONE,
@@ -155,6 +176,7 @@ function checkZone(service, method, path, route, queryLength) {
     const prefix = `${zone.prefix}/`;
     const id = path.startsWith(prefix) ? path.slice(prefix.length) : '';
     if (!id || id.includes('/') || !zone.item.includes(method)) return deny('route_not_allowed');
+    if (zone.itemNames && !zone.itemNames.includes(id)) return deny('route_not_allowed');
     return { ok: true, ruleId: zone.ruleId };
   }
   return deny('route_not_allowed');

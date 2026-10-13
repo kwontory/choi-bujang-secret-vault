@@ -2,7 +2,7 @@
 // 기기 키는 이 프로세스 메모리에서만 만들고 파일에 저장하지 않습니다. 토큰·키·메모 본문은 출력하지 않습니다.
 //
 //   APP_TOKEN=<로그인 토큰> node scripts/app-client.mjs check            정상·공격 사례를 차례로 보내고 결과 표를 출력
-//   APP_TOKEN=<로그인 토큰> node scripts/app-client.mjs request GET /api/notes   승인 뒤 서명 요청 한 건
+//   APP_TOKEN=<로그인 토큰> node scripts/app-client.mjs request GET /api/my/notes   승인 뒤 서명 요청 한 건
 //   APP_URL 을 주지 않으면 aleph.config.json 의 publicAppUrl 을 씁니다.
 import { readFileSync } from 'node:fs';
 
@@ -58,24 +58,28 @@ async function check(baseUrl, token) {
   const reg = await app.register();
   row('승인 요청(서버·판정기 결정) → approved', 'true', String(reg.body?.approved === true));
   row('승인 후 상태 확인 → approved', 'true', String((await app.status()).body?.approved === true));
-  const ok = await app.send({ path: '/api/notes' });
-  row('정상: 서명한 보호 요청 GET /api/notes → 200', '200', String(ok.status));
-  const unsigned = await app.send({ path: '/api/notes', signed: false });
-  row('공격: 설치형 앱 서명 없이 보호 요청 → 403', '403 device_signature_required', `${unsigned.status} ${unsigned.error}`);
+  const ok = await app.send({ path: '/api/my/notes' });
+  row('정상: 서명한 내 메모 목록 GET /api/my/notes → 200', '200', String(ok.status));
   const other = '/api/notes/00000000-0000-4000-8000-000000000000';
-  const moved = await app.send({ path: '/api/notes', sendAs: { path: other } });
+  const absent = await app.send({ path: other });
+  row('정상: 서명한 한 건 조회(내 것이 아닌 ID) → 404', '404 note_not_found', `${absent.status} ${absent.error}`);
+  const list = await app.send({ path: '/api/notes' });
+  row('거부: 전체 목록 GET /api/notes → 403', '403 note_list_denied', `${list.status} ${list.error}`);
+  const unsigned = await app.send({ path: '/api/my/notes', signed: false });
+  row('공격: 설치형 앱 서명 없이 보호 요청 → 403', '403 device_signature_required', `${unsigned.status} ${unsigned.error}`);
+  const moved = await app.send({ path: '/api/my/notes', sendAs: { path: other } });
   row('공격: 서명 뒤 요청 경로 변경 → 401', '401 device_signature_invalid', `${moved.status} ${moved.error}`);
   const note = { title: '서명 시험 메모', body: '공개 가능한 가상 메모입니다.' };
-  const changed = await app.send({ method: 'POST', path: '/api/notes', body: note, sendAs: { body: { ...note, body: '서명 뒤 바꾼 본문' } } });
+  const changed = await app.send({ method: 'PUT', path: other, body: note, sendAs: { body: { ...note, body: '서명 뒤 바꾼 본문' } } });
   row('공격: 서명 뒤 수정 본문 변경 → 401', '401 device_signature_invalid', `${changed.status} ${changed.error}`);
   app.forgeGrant();
-  const forged = await app.send({ path: '/api/notes' });
+  const forged = await app.send({ path: '/api/my/notes' });
   row('공격: 위조 승인 증표 → 401', '401 device_not_registered', `${forged.status} ${forged.error}`);
   return { baseUrl, deviceId: app.deviceId, rows };
 }
 
 if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith('app-client.mjs')) {
-  const [command = 'check', method = 'GET', path = '/api/notes'] = process.argv.slice(2);
+  const [command = 'check', method = 'GET', path = '/api/my/notes'] = process.argv.slice(2);
   const baseUrl = process.env.APP_URL
     || JSON.parse(readFileSync(new URL('../aleph.config.json', import.meta.url), 'utf8')).publicAppUrl;
   const token = process.env.APP_TOKEN;

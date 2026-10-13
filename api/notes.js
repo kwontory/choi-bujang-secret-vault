@@ -1,9 +1,8 @@
-import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import config from '../aleph.config.json' with { type: 'json' };
 import { createLoginVerifier } from '../src/verify-login.mjs';
 import { appendAudit, contentSha256, ensureBackup } from '../src/note-backup.mjs';
-import { checkSignedRequest } from '../src/device-approval.mjs';
+import { guardProtected } from '../src/api-guard.mjs';
 
 // 8단계: 메모 응답마다 구역 이름이 붙은 자원 ID(note:<id>)를 함께 돌려줍니다.
 const noteResourceId = id => `note:${id}`;
@@ -73,40 +72,13 @@ export default async function handler(request, response) {
   const routeId = typeof request.query?.id === 'string' ? request.query.id : null;
   if (routeId && !UUID.test(routeId)) return json(response, 400, { error: 'invalid_note_id' });
 
-  // 11단계: 보호 요청은 서버가 승인한 기기의 설치형 앱 서명이 있어야 합니다(docs/APP_SIGNING.md).
-  // 서명이 없거나, 서명 뒤 경로나 본문을 바꿨거나, 승인 전·회수된·다른 사용자 기기의 서명이면 거부합니다.
-  const signed = await checkSignedRequest({ supabase: active.supabase, identity, headers: request.headers,
-    method: request.method, path: routeId ? `/api/notes/${routeId}` : '/api/notes', body: request.body });
-  if (signed.error) return json(response, signed.error === 'device_signature_required' ? 403 : 401, { error: signed.error });
-
-  if (request.method === 'GET' && !routeId) {
-    const { data, error } = await active.supabase
-      .from('notes')
-      .select('id, title, content')
-      .eq('owner_id', identity.userId)
-      .order('created_at', { ascending: true });
-    if (error) return json(response, 502, { error: 'notes_unavailable' });
-    return json(response, 200, (data ?? []).map(note => ({
-      id: note.id, resourceId: noteResourceId(note.id), title: note.title, body: note.content,
-    })));
-  }
-
-  if (request.method === 'POST' && !routeId) {
-    const input = noteInput(request);
-    if (!input) return json(response, 400, { error: 'invalid_note' });
-    const posted = requestBody(request);
-    const id = typeof posted?.id === 'string' && UUID.test(posted.id)
-      ? posted.id : randomUUID();
-    const { error } = await active.supabase.from('notes').insert({
-      id, owner_id: identity.userId, title: input.title, content: input.body,
-    });
-    if (error) return json(response, 502, { error: 'note_create_failed' });
-    // 10단계: 새 메모의 첫 사본과 감사 기록을 남깁니다(실패해도 생성은 유지).
-    await ensureBackup(active.supabase, { id, owner_id: identity.userId, title: input.title, content: input.body });
-    await appendAudit(active.supabase, { action: 'create', noteId: id, ownerId: identity.userId,
-      actorId: identity.userId, afterSha256: contentSha256(input.title, input.body) });
-    return json(response, 201, { id, resourceId: noteResourceId(id) });
-  }
+  // 전역 접근 통제: 설치형 앱 서명·서버 승인 기기 확인 뒤, 판정기 구역표가 허용하는 경로만 처리합니다.
+  // 메모는 자료 ID 하나를 고르는 경로(GET·PUT·DELETE /api/notes/:id)만 허용되고,
+  // ID 없는 GET·POST /api/notes 는 판정기가 note_list_denied 로 거부합니다. 내 목록은 GET /api/my/notes 입니다.
+  const guard = await guardProtected({ supabase: active.supabase, identity, request,
+    apiPath: routeId ? `/api/notes/${routeId}` : '/api/notes' });
+  if (guard.error) return json(response, guard.error.status, guard.error.body);
+  if (!routeId) return json(response, 403, { error: 'note_list_denied' });
 
   if (request.method === 'GET' && routeId) {
     const { data, error } = await active.supabase
@@ -128,7 +100,21 @@ export default async function handler(request, response) {
       .eq('id', routeId).eq('owner_id', identity.userId)
       .select('id, title, content').maybeSingle();
     if (error) return json(response, 502, { error: 'note_update_failed' });
-    if (!data) return json(response, 404, { error: 'note_not_found' });
+    if (!data) {
+      // 이 ID 의 메모가 아직 없으면 검증된 사용자를 주인으로 새로 만듭니다(새 메모 만들기 = PUT /api/notes/:id).
+      // 다른 사람의 메모 ID 라면 만들지 않고 404 입니다.
+      const { data: taken, error: takenError } = await active.supabase.from('notes').select('id').eq('id', routeId).maybeSingle();
+      if (takenError) return json(response, 502, { error: 'note_update_failed' });
+      if (taken) return json(response, 404, { error: 'note_not_found' });
+      const { error: insertError } = await active.supabase.from('notes').insert({
+        id: routeId, owner_id: identity.userId, title: input.title, content: input.body,
+      });
+      if (insertError) return json(response, 502, { error: 'note_create_failed' });
+      await ensureBackup(active.supabase, { id: routeId, owner_id: identity.userId, title: input.title, content: input.body });
+      await appendAudit(active.supabase, { action: 'create', noteId: routeId, ownerId: identity.userId,
+        actorId: identity.userId, afterSha256: contentSha256(input.title, input.body) });
+      return json(response, 201, { id: routeId, resourceId: noteResourceId(routeId), title: input.title, body: input.body });
+    }
     await appendAudit(active.supabase, { action: 'update', noteId: routeId, ownerId: identity.userId,
       actorId: identity.userId, beforeSha256: before?.sha256, afterSha256: contentSha256(data.title, data.content) });
     return json(response, 200, {
@@ -148,6 +134,6 @@ export default async function handler(request, response) {
     return json(response, 200, { deleted: true });
   }
 
-  response.setHeader('Allow', routeId ? 'GET, PUT, DELETE' : 'GET, POST');
+  response.setHeader('Allow', 'GET, PUT, DELETE');
   return json(response, 405, { error: 'method_not_allowed' });
 }

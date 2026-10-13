@@ -6,6 +6,7 @@
 // 다른 메모, 다른 사용자 자료, 감사 기록은 바꾸거나 지우지 않습니다. 메모 본문은 응답에 넣지 않습니다.
 import { json, requestBody, serverRuntime } from '../src/zone-api.mjs';
 import { appendAudit, contentSha256, latestBackup, verifyBackup } from '../src/note-backup.mjs';
+import { guardProtected } from '../src/api-guard.mjs';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
@@ -28,6 +29,10 @@ export default async function handler(request, response) {
     response.setHeader('Allow', 'POST');
     return json(response, 405, { error: 'method_not_allowed' });
   }
+  // 전역 접근 통제: 설치형 앱 서명·서버 승인 기기 확인 뒤 판정기(zone_restore_verified_backup)에 묻습니다.
+  const pathId = typeof request.query?.id === 'string' ? request.query.id : '';
+  const guard = await guardProtected({ supabase: active.supabase, identity, request, apiPath: `/api/restore/notes/${pathId}` });
+  if (guard.error) return json(response, guard.error.status, guard.error.body);
   const result = await restoreNote({ supabase: active.supabase, identity, request });
   return json(response, result.status, result.body);
 }
