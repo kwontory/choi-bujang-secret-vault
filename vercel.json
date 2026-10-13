@@ -5,6 +5,10 @@
   "outputDirectory": "public",
   "rewrites": [
     {
+      "source": "/api/checks",
+      "destination": "/api/threat-intel?mode=checks"
+    },
+    {
       "source": "/api/my/notes",
       "destination": "/api/my-notes"
     },

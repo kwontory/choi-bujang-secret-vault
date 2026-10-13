@@ -45,11 +45,6 @@ try {
   }
   const notes = JSON.parse(readFileSync(join(root, 'bundle-notes.json'), 'utf8'));
   if (!Number.isInteger(config.step) || config.step < 1 || config.step > 12) fail('aleph.config.json의 step을 확인해 주세요.');
-  if (config.step >= 3 && (!config.identityProvider || typeof config.identityProvider !== 'object'
-      || ['issuer', 'audience', 'jwksUrl'].some((key) => typeof config.identityProvider[key] !== 'string'
-        || !config.identityProvider[key].trim()))) {
-    fail('3단계부터 aleph.config.json의 identityProvider에 발급자·대상·공개키 주소가 필요합니다. 3단계 제작 2를 다시 확인해 주세요.');
-  }
   if (config.step >= 5 && (typeof config.originalApiUrl !== 'string'
       || !config.originalApiUrl.startsWith('https://'))) {
     fail('5단계부터 aleph.config.json의 originalApiUrl에 원본 자료 API의 HTTPS 주소가 필요합니다. 5단계 제작 2를 다시 확인해 주세요.');
@@ -71,13 +66,13 @@ try {
   const checkerUrl = pathToFileURL(join(root, 'src', 'attack-check.mjs'));
   const { runAttackChecks } = await import(checkerUrl.href);
   if (typeof runAttackChecks !== 'function') fail('src/attack-check.mjs가 runAttackChecks를 내보내야 합니다.');
-  const attackAttempts = await runAttackChecks(config);
+  const attackAttempts = await runAttackChecks(config.publicAppUrl);
   if (!Array.isArray(attackAttempts) || !attackAttempts.length || attackAttempts.length > 20) {
     fail('직접 실행한 공격 점검 결과 1~20개가 필요합니다.');
   }
   for (const attempt of attackAttempts) {
     if (!attempt || typeof attempt !== 'object' || Array.isArray(attempt)
-        || Object.keys(attempt).sort().join(',') !== 'attackId,expected,observed'
+        || Object.keys(attempt).sort().join(',') !== 'attackId,expected,observed,result,stage'
         || typeof attempt.attackId !== 'string' || !/^[a-z0-9][a-z0-9_.-]{0,79}$/iu.test(attempt.attackId)
         || typeof attempt.expected !== 'string' || !attempt.expected.trim() || attempt.expected.length > 300
         || typeof attempt.observed !== 'string' || !attempt.observed.trim() || attempt.observed.length > 300) {
@@ -88,7 +83,7 @@ try {
     fail('공격 점검 ID가 중복되었습니다.');
   }
   const bundle = {
-    schema: 'aleph.defense.submission.v2', step: config.step, commit, repoUrl,
+    schema: 'aleph.defense.submission.v2', step: config.step, commit, repoUrl, checkedAt: new Date().toISOString(),
     changedFiles, policyRules,
     attackAttempts, explanation: notes.explanation.trim(), blockedAt: notes.blockedAt ?? null,
     identityProvider: config.identityProvider ?? null, allowedRoutes: config.allowedRoutes ?? [],

@@ -35,7 +35,9 @@ Supabase Auth 로그인과 서버 토큰 검증을 유지하면서, 로그인·�
 
 - `npm install` → `npm test`(판정기·탐지·7단계 사건·정책 복원·메모 복구 로컬 연습, 인터넷 불필요) → `npm run build`(Vercel 밖에서는 `public/aleph.json`만 건너뜀).
 - `src/decider.mjs`, `src/detect.mjs`는 `import` 없는 한 파일이라 다른 파일·패키지·네트워크 없이 불러와 바로 답합니다.
-- `npm run bundle`의 자기 점검(`src/attack-check.mjs`)은 공개 HTTPS 주소로 GET 만 보내고, 연결이 막히면 멈추지 않고 `HTTP 0`(확인하지 못함)으로 기록합니다.
+- `npm run bundle`의 자기 점검(`src/attack-check.mjs`)은 공식 표본과 같은 형식입니다. 배포 주소(`publicAppUrl`)만 받아 실제 배포에 읽기 요청(GET)을 보내고, 응답 상태로 `observed`를 만듭니다. 점검마다 `attackId·stage·expected·observed·result`를 적고, 요청을 보내지 못하면 `result: "not_run"`으로 남깁니다.
+- 6~9단계 규칙 점검은 배포된 `/api/checks?case=...`(vercel.json 이 `api/threat-intel.js`로 연결, 내부는 `src/rule-check.mjs`)가 고정된 가상 입력으로 판정기·탐지 규칙을 실행한 응답을 받습니다. 응답의 `ready`는 그 가상 조건을 충족했는지만 뜻하며 실제 기기 승인 상태가 아닙니다.
+- runner가 응답을 독립 관측할 수 있도록 요청마다 `alephEvidence`에 사례 ID(`caseId` = `attackId`)와 요청 ID를 연결합니다. 이 메타데이터는 요청 헤더나 URL에 넣지 않습니다.
 
 ## 11단계 접속 앱 확인 순서
 
