@@ -1,7 +1,7 @@
 // The student changes this check as each stage adds an attack to the same app.
 // Never return tokens, private keys, real names, or note bodies.
 export async function runAttackChecks(config) {
-  if (![1, 2, 3, 4, 5, 6].includes(config.step)) throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
+  if (![1, 2, 3, 4, 5, 6, 7].includes(config.step)) throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
   let app;
   try {
     app = new URL(config.publicAppUrl);
@@ -59,7 +59,7 @@ export async function runAttackChecks(config) {
       // 로컬 판정기에 미등록 기기 가상 요청 한 건을 직접 넣어 본 결과입니다. 심판 판정이 아닙니다.
       const { fixtureRequests } = await import('../scripts/fixture-7.mjs');
       const { decide } = await import('./decider.mjs');
-      const { normal } = fixtureRequests();
+      const { normal, suspicious } = fixtureRequests();
       const result = await decide({ ...normal, deviceRegistered: false });
       attempts.push({
         attackId: 'unregistered_device_read',
@@ -68,6 +68,17 @@ export async function runAttackChecks(config) {
           ? '로컬 판정기 가상 요청에서 deny·device_not_registered 확인'
           : `로컬 판정기 가상 요청 결과가 기대와 다름 (${result?.decision ?? '응답 없음'})`,
       });
+      if (config.step >= 7) {
+        // 복합 이상 가상 사건을 로컬 판정기에 넣어 본 결과입니다. 실제 재로그인 차단은 실측하지 않았습니다.
+        const unusual = await decide(suspicious);
+        attempts.push({
+          attackId: 'unusual_access_step_up',
+          expected: '낯선 지역·시각·네트워크와 대량 사건이 겹친 접속은 step_up·step_up_required',
+          observed: unusual?.decision === 'step_up' && unusual?.reasonCode === 'step_up_required'
+            ? '로컬 판정기 가상 사건에서 step_up·step_up_required 확인 (실제 재로그인 차단은 미실행)'
+            : `로컬 판정기 가상 사건 결과가 기대와 다름 (${unusual?.decision ?? '응답 없음'})`,
+        });
+      }
     }
     return attempts;
   }

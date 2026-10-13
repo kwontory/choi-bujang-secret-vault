@@ -1,4 +1,4 @@
-# BYTE BACK 방어전 · 6단계 저장점
+# BYTE BACK 방어전 · 7단계 저장점
 
 Supabase Auth 로그인과 서버 토큰 검증을 유지하면서, 로그인·메모 CRUD를 Vercel 서버 함수로 통일했습니다. 비밀번호, JWT, 서버 전용 키는 저장소·응답·로그에 넣지 않습니다.
 
@@ -9,6 +9,7 @@ Supabase Auth 로그인과 서버 토큰 검증을 유지하면서, 로그인·�
 - 로그인 사용자는 자기 가상 메모만 목록·한 건 조회·추가·수정·삭제할 수 있습니다. 다른 소유자의 ID로 요청하면 `404`를 반환합니다.
 - 서버는 브라우저가 보낸 소유자 ID를 거부하고, 검증된 토큰의 사용자 ID를 새 메모의 `owner_id`로 저장합니다. 수정과 삭제는 ID와 검증된 소유자를 함께 조건으로 사용합니다.
 - 6단계: `src/decider.mjs`의 `device_registered` 규칙은 `docs/DECIDER_REQUEST.md` 계약의 `deviceRegistered`가 정확히 `true`이고 `deviceId`가 16자리 소문자 16진수일 때만 내 자료실 읽기(`GET`)를 `allow`·`approved`로 허용합니다. 미등록이거나 값이 없으면 `deny`·`device_not_registered`로 거부하고, 그 밖의 요청은 시작 기본값 `starter.deny`(`starter_not_ready`)로 거부합니다.
+- 7단계: `step_up_required` 규칙은 엔진이 검증한 접속 정보(`signals.source`가 `judge_fixture`)에서 지역이 `local`이 아니거나, 네트워크가 `usual`이 아니거나, 시각이 06~22시 밖이거나, 최근 10분 사건(`recentEvents`)에 `risk_signal` 또는 합계 10건 이상의 대량 행동이 있으면 `step_up`·`step_up_required`로 다시 로그인을 요구합니다. 접속 정보가 없거나 출처가 불명확하면(알 수 없는 `source`, `none`인데 지역·네트워크 값이 있는 경우) 정상값으로 채우지 않고 추가 확인으로 보냅니다. 지역 하나만으로 영구 차단(`deny`)하지 않습니다. 엔진이 검증한 `stepUp.verified`가 `true`이고 `authAgeSeconds`가 300초 이내일 때만 다시 판정해 읽기를 허용합니다.
 - `/data.json`은 빈 메모 배열이고 `/aleph.json`과 `X-Content-Type-Options: nosniff`를 유지합니다. 원본 자료 API 주소는 `aleph.config.json`에 기록합니다.
 
 `supabase/step4-policy.sql`은 anon 권한을 회수하고 authenticated에 필요한 네 작업만 부여하는 제안 SQL입니다. 소유자별 RLS도 포함합니다. Supabase에는 검토·실행 후에야 적용됩니다.
@@ -39,7 +40,15 @@ Supabase Auth 로그인과 서버 토큰 검증을 유지하면서, 로그인·�
 4. 출력에 `통과 · 미등록 기기의 가상 요청`(미등록 기기 → `deny`·`device_not_registered`)이 보이는지 확인합니다.
 5. 둘 중 하나라도 `확인 필요`로 나오면 `src/decider.mjs`의 `RULE_IDS`와 `device_registered` 조건을 다시 봅니다.
 
-`npm run decider:test`는 가상 요청 연습이며 심판 판정이 아닙니다. `npm run fixture:7`의 복합 이상 접속(`step_up`)은 7단계 과제라 아직 실패하는 것이 정상입니다.
+`npm run decider:test`는 가상 요청 연습이며 심판 판정이 아닙니다. 
+
+## 7단계 판정기 확인 순서
+
+1. `npm run decider:test`를 실행해 네 줄이 모두 `통과`인지 봅니다: 등록 기기의 정상 요청(`allow`), 미등록 기기의 가상 요청(`deny`), 복합 이상 접속(`step_up`·`step_up_required`), 다시 확인한 복합 이상 접속(`allow`).
+2. `npm run fixture:7`을 실행해 `정상 사건: allow`, `복합 이상 사건: step_up`이 나오는지 봅니다.
+3. 거부·추가 확인되어야 할 결과: 낯선 지역·시각·네트워크 하나라도 있거나 출처가 불명확한 접속 정보는 `step_up`, 미등록 기기는 `deny`·`device_not_registered`.
+
+재로그인 시각 계약은 `docs/DECIDER_REQUEST.md`의 `stepUp`(`verified`, `authAgeSeconds`)입니다. 판정기는 이 값으로 다시 판정만 하며, 실제 재로그인 전 자료 차단과 새 로그인 뒤 허용은 제공 엔진이 새 로그인 시각을 검증하는 환경에서만 실측할 수 있어 아직 미실행입니다. 토큰 원문은 기록하지 않습니다.
 
 `xdr/` 폴더는 보너스 XDR 작전(무차별 로그인·웹 주입) 판정 모듈이며 `npm run xdr:run`으로 실행합니다. 판정기 규칙(`src/decider.mjs`)과는 별개입니다.
 
