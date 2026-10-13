@@ -89,7 +89,7 @@
       "id": "request_integrity",
       "layer": "decider",
       "effect": "deny",
-      "target": "메서드·경로 모양·실제 경로·쿼리 지문이 서로 맞지 않는 요청(서명 뒤 변경)",
+      "target": "메서드·경로 모양·실제 경로가 서로 맞지 않는 요청(서명 뒤 경로·메서드 변경)",
       "reasonCode": "request_tampered"
     },
     {
@@ -100,5 +100,5 @@
       "status": 401
     }
   ],
-  "rulesSha256": "17335740c88168e7d9e9911c8fb99c800949a0cd4528709a3abe9b6785266490"
+  "rulesSha256": "e6b9a6a8ea4724a9f3133ff72bd67bedff5bd17780465b390b26eb76f6112cfd"
 }
