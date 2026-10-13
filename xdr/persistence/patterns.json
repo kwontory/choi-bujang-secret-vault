@@ -1,0 +1,10 @@
+{
+  "moduleKey": "persistence",
+  "basis": "MITRE ATT&CK T1543 (Create or Modify System Process) · T1053 (Scheduled Task/Job)",
+  "patterns": [
+    { "name": "서명 없는 새 서비스", "match": "평소 목록에 없는 서비스가 서명 없이 등록·변경되거나 임시 폴더 실행 파일을 가리킴(같은 주소에서 연속 등록 포함)", "action": "block", "basis": "T1543.003 Windows Service — 재부팅 뒤에도 남도록 서비스로 심음" },
+    { "name": "낯선 예약 작업", "match": "처음 보는 예약 작업이 임시 폴더 실행 파일·임의 문자열 이름·수업 시간 밖 실행을 보임", "action": "block", "basis": "T1053.005 Scheduled Task — 예약 작업으로 반복 실행해 지속성 확보" },
+    { "name": "시작 폴더 변경", "match": "시작 폴더·시작 프로그램에 평소 목록에 없는 실행 파일이 추가됨", "action": "block", "basis": "T1547.001 Startup Folder (T1543 과 같은 지속성 전술) — 로그인 때마다 자동 실행" },
+    { "name": "지속성 의심", "match": "T1543/T1053 태그 경보지만 서명 미확인·수업 도구 이름·설명만 변경 등 신호가 약함", "action": "alert", "basis": "T1543 / T1053 태그 — 명확한 근거 없어 사람 확인" }
+  ]
+}

@@ -1,0 +1,155 @@
+{
+  "schema": "aleph.xdr.result.v1",
+  "moduleKey": "persistence",
+  "decisions": [
+    {
+      "alertId": "ps-01",
+      "action": "block",
+      "confidence": 0.94,
+      "reason": "서명 없는 새 서비스: 레벨 12, 뚜렷한 지속성 신호 3개 — 그 PC 접속 격리 후보"
+    },
+    {
+      "alertId": "ps-02",
+      "action": "block",
+      "confidence": 0.91,
+      "reason": "낯선 예약 작업: 레벨 12, 뚜렷한 지속성 신호 2개 — 그 PC 접속 격리 후보"
+    },
+    {
+      "alertId": "ps-03",
+      "action": "block",
+      "confidence": 0.91,
+      "reason": "시작 폴더 변경: 레벨 11, 뚜렷한 지속성 신호 2개 — 그 PC 접속 격리 후보"
+    },
+    {
+      "alertId": "ps-04",
+      "action": "block",
+      "confidence": 0.91,
+      "reason": "서명 없는 새 서비스: 레벨 12, 뚜렷한 지속성 신호 2개 — 그 PC 접속 격리 후보"
+    },
+    {
+      "alertId": "ps-05",
+      "action": "block",
+      "confidence": 0.94,
+      "reason": "낯선 예약 작업: 레벨 10, 뚜렷한 지속성 신호 3개 — 그 PC 접속 격리 후보"
+    },
+    {
+      "alertId": "ps-06",
+      "action": "block",
+      "confidence": 0.91,
+      "reason": "서명 없는 새 서비스: 레벨 12, 뚜렷한 지속성 신호 2개 — 그 PC 접속 격리 후보"
+    },
+    {
+      "alertId": "ps-07",
+      "action": "block",
+      "confidence": 0.88,
+      "reason": "낯선 예약 작업+시작 폴더 변경: 레벨 11, 뚜렷한 지속성 신호 1개 — 그 PC 접속 격리 후보"
+    },
+    {
+      "alertId": "ps-08",
+      "action": "block",
+      "confidence": 0.94,
+      "reason": "서명 없는 새 서비스: 레벨 12, 뚜렷한 지속성 신호 3개 — 그 PC 접속 격리 후보"
+    },
+    {
+      "alertId": "ps-09",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "지속성 의심+낯선 예약 작업: 레벨 6, 뚜렷한 신호 0개 — 차단하지 않고 사람 확인"
+    },
+    {
+      "alertId": "ps-10",
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "지속성 의심+서명 없는 새 서비스: 레벨 7, 뚜렷한 신호 0개 — 차단하지 않고 사람 확인"
+    },
+    {
+      "alertId": "ps-11",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "지속성 의심+서명 없는 새 서비스: 레벨 5, 뚜렷한 신호 0개 — 차단하지 않고 사람 확인"
+    },
+    {
+      "alertId": "ps-12",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "지속성 의심+낯선 예약 작업: 레벨 6, 뚜렷한 신호 0개 — 차단하지 않고 사람 확인"
+    },
+    {
+      "alertId": "ps-13",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "지속성 의심+서명 없는 새 서비스: 레벨 8, 뚜렷한 신호 1개 — 차단하지 않고 사람 확인"
+    },
+    {
+      "alertId": "ps-14",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "지속성 의심+시작 폴더 변경: 레벨 6, 뚜렷한 신호 0개 — 차단하지 않고 사람 확인"
+    },
+    {
+      "alertId": "ps-15",
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "지속성 의심+낯선 예약 작업: 레벨 7, 뚜렷한 신호 0개 — 차단하지 않고 사람 확인"
+    },
+    {
+      "alertId": "ps-16",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "지속성 의심+서명 없는 새 서비스: 레벨 5, 뚜렷한 신호 0개 — 차단하지 않고 사람 확인"
+    },
+    {
+      "alertId": "ps-17",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 이벤트: 정보성 이벤트(레벨 3) — 정상"
+    },
+    {
+      "alertId": "ps-18",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 이벤트: 정보성 이벤트(레벨 2) — 정상"
+    },
+    {
+      "alertId": "ps-19",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 이벤트: 정보성 이벤트(레벨 3) — 정상"
+    },
+    {
+      "alertId": "ps-20",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 이벤트: 정보성 이벤트(레벨 2) — 정상"
+    },
+    {
+      "alertId": "ps-21",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 이벤트: 정보성 이벤트(레벨 3) — 정상"
+    },
+    {
+      "alertId": "ps-22",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 이벤트: 정보성 이벤트(레벨 3) — 정상"
+    },
+    {
+      "alertId": "ps-23",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 이벤트: 정보성 이벤트(레벨 2) — 정상"
+    },
+    {
+      "alertId": "ps-24",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 이벤트: 정보성 이벤트(레벨 3) — 정상"
+    }
+  ],
+  "counts": {
+    "block": 8,
+    "alert": 8,
+    "record": 8
+  }
+}
