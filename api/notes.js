@@ -73,11 +73,11 @@ export default async function handler(request, response) {
   const routeId = typeof request.query?.id === 'string' ? request.query.id : null;
   if (routeId && !UUID.test(routeId)) return json(response, 400, { error: 'invalid_note_id' });
 
-  // 11단계: 접속 앱이 기기 서명을 붙여 보낸 요청은 서명을 확인합니다.
-  // 서명 뒤 경로나 본문을 바꿨거나, 승인되지 않은 기기·다른 사용자 기기의 서명이면 거부합니다.
+  // 11단계: 접속 앱(브라우저)에서 온 보호 요청은 서버가 승인한 기기의 서명이 있어야 합니다.
+  // 서명이 없거나, 서명 뒤 경로나 본문을 바꿨거나, 승인 전·회수된·다른 사용자 기기의 서명이면 거부합니다.
   const signed = await checkSignedRequest({ supabase: active.supabase, identity, headers: request.headers,
     method: request.method, path: routeId ? `/api/notes/${routeId}` : '/api/notes', body: request.body });
-  if (signed.error) return json(response, 401, { error: signed.error });
+  if (signed.error) return json(response, signed.error === 'device_signature_required' ? 403 : 401, { error: signed.error });
 
   if (request.method === 'GET' && !routeId) {
     const { data, error } = await active.supabase

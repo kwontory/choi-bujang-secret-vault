@@ -19,9 +19,9 @@ Supabase Auth 로그인과 서버 토큰 검증을 유지하면서, 로그인·�
 - 9단계 탐지: `src/detect.mjs`의 `detect(events)`는 가상 사건에서 가명 사용자(`identity.sub`)·기기(`deviceId`)·요청 종류(`method`)·판정(`decision`)·시각·네트워크만 읽고, 메모 본문·토큰·실명은 읽거나 돌려주지 않습니다. 같은 사용자의 `GET`이 어느 10분 구간에서든 120건을 넘고, 네트워크 정보가 있으면 그 구간에 평소와 다른 네트워크 조회가 있을 때만 `{ action: 'propose_revocation', reasonCode: 'burst_read', subject, deviceId }`를 돌려줍니다. 평소 네트워크(`usual`) 조회는 다량 조회 수에 넣지 않고, 지역 값은 판단에 쓰지 않습니다. 대상 기기는 의심 구간에서 가장 많이 나온 확인된 가상 기기 한 개입니다. 그 밖에는 `{ action: 'observe' }`입니다. 이 결과는 판정기 응답과 별개이며, 판정기의 허용·거부 응답 형식은 바꾸지 않았습니다. 회수 API는 만들지 않았고 실제 회수와 경과 시간은 반 엔진과 심판이 확인합니다.
 - 10단계 복구: 메모를 만들 때, 그리고 사본이 없는 메모를 처음 고치거나 지우기 직전에 침해 전 사본(`note_backups`)을 남기고, 생성·수정·삭제·복구마다 감사 기록(`note_audit`, 본문 없이 해시만)을 덧붙입니다. 복구 경로 `POST /api/restore/notes/:id`는 사본을 다시 읽어 ID·소유자·내용 해시를 검증한 뒤 그 한 건만 되살립니다. 안전 정책 사본(`policy/safe-policy.json`)과 시험 정책(`policy/test-policy.json`)은 `npm run policy:diff`·`policy:restore`로 대조·복원합니다.
 - 11단계 접속 앱: `/`는 설치형 웹앱 설정(`/manifest.webmanifest`, 앱 이름 「BYTE BACK 접속 앱」, 텍스트 SVG 아이콘 `/icon.svg`)과 오프라인 안내(`/offline.html`, 서비스 워커 `/sw.js`는 안내 화면만 보관하고 API 응답·토큰·키는 저장하지 않음)를 갖췄습니다. 첫 화면부터 「이 기기 승인」 상태(`미승인`)와 승인 안내가 보이고, 로그인 뒤 서버가 이 기기를 승인된 기기로 확인하고 판정기가 `allow`할 때만 메모 자료실을 열고 메모를 불러옵니다. 승인 전에는 메모 요청 자체를 보내지 않습니다.
-- 기기 키는 화면 메모리에서만 만드는 내보낼 수 없는 P-256 키이며 브라우저 저장소(localStorage·sessionStorage·IndexedDB)·코드·Git·제출물에 넣지 않습니다. 새로고침하면 새 기기 키라 다시 승인받아야 합니다. 서버는 공개 키(x, y)와 16자리 기기 ID만 `device_registrations`에 둡니다.
-- 승인 흐름: 「기기 승인 요청」(`POST /api/device/register`, 서명으로 기기 증명) → `pending` 기록 → 관리자 승인(`PUT /api/admin/devices/:id`, 저장된 강사 권한표의 사용자만, 또는 Supabase SQL) → 「승인 상태 다시 확인」(`POST /api/device/status`) → 서버가 승인 기록·같은 공개 키·같은 사용자를 확인해 `deviceRegistered`를 정하고 `src/decider.mjs`의 `decide()`가 `allow`이면 자료실을 엽니다. 승인 요청 버튼이나 설치 표시(`display-mode`)만으로는 승인되지 않으며, 브라우저가 보낸 `status`·`approved`·`deviceRegistered`·`role`은 `400`으로 거부합니다.
-- 접속 앱의 메모 요청에는 기기 서명 머리글(`X-Aleph-Device`, `X-Aleph-Timestamp`, `X-Aleph-Signature`)이 붙고, 서명 문장에 메서드·경로·본문 해시·시각이 들어갑니다. 서명이 붙은 요청은 `api/notes.js`가 확인해 서명 뒤 경로·본문을 바꿨거나, 승인 전·회수된·다른 사용자 기기면 `401`로 거부합니다. 판정기에는 `request_integrity` 규칙을 더해 메서드·경로 모양·실제 경로가 서로 맞지 않는 요청을 `deny`·`request_tampered`로 거부합니다(`/api/notes/:id` 모양도 같은 자원으로 읽음). 쿼리가 붙은 요청은 8단계 구역 규칙이 거부합니다.
+- 기기 키는 화면 메모리에서만 만드는 내보낼 수 없는 P-256 키이며, 로그인 토큰·서버 승인 증표와 함께 브라우저 저장소(localStorage·sessionStorage·IndexedDB)·코드·Git·제출물에 넣지 않습니다. 새로고침하면 새 기기 키로 다시 승인받습니다.
+- 승인 흐름(승인 여부는 서버와 판정기가 정함): 로그인하면 화면이 `POST /api/device/register`로 승인을 요청합니다(「기기 승인 요청」 버튼도 같은 요청만 보냄). 서버는 ① 검증된 로그인 사용자 ② 그 기기의 개인키 서명 증명 ③ 회수 기록 없음을 확인해 등록 기기로 정하고, `src/decider.mjs`의 `decide()`에 `deviceRegistered: true`로 물어 `allow`일 때만 승인 증표(서버 비밀 키로 서명, 12시간)를 내줍니다. 화면은 `POST /api/device/status`로 다시 확인해 `approved: true`·`decision: allow`일 때만 기존 자료실을 엽니다. 설치 표시(`display-mode`)는 참고로만 보여 주고 판단에 쓰지 않으며, 브라우저가 보낸 `status`·`approved`·`deviceRegistered`·`grant`·`role`은 `400`으로 거부합니다. 회수는 `PUT /api/admin/devices/:id`(저장된 강사 권한표의 사용자만) 또는 Supabase(`supabase/step11-devices.sql`)로 합니다.
+- 접속 앱의 보호 요청에는 기기 서명 머리글(`X-Aleph-Device`, `X-Aleph-Timestamp`, `X-Aleph-Grant`, `X-Aleph-Signature`)이 붙고, 서명 문장에 메서드·경로·본문 해시·시각이 들어갑니다. `api/notes.js`는 접속 앱(브라우저)에서 온 서명 없는 보호 요청을 `403 device_signature_required`로, 서명 뒤 경로·본문을 바꾼 요청·위조 증표·승인 안 된 기기·회수된 기기를 `401`로 거부합니다. 판정기에는 `request_integrity` 규칙을 더해 메서드·경로 모양·실제 경로가 서로 맞지 않는 요청을 `deny`·`request_tampered`로 거부합니다(`/api/notes/:id` 모양도 같은 자원으로 읽음).
 - `/data.json`은 빈 메모 배열이고 `/aleph.json`과 `X-Content-Type-Options: nosniff`를 유지합니다. 원본 자료 API 주소는 `aleph.config.json`에 기록합니다.
 
 `supabase/step4-policy.sql`은 anon 권한을 회수하고 authenticated에 필요한 네 작업만 부여하는 제안 SQL입니다. 소유자별 RLS도 포함합니다. Supabase에는 검토·실행 후에야 적용됩니다.
@@ -50,13 +50,12 @@ Supabase Auth 로그인과 서버 토큰 검증을 유지하면서, 로그인·�
 
 ## 11단계 접속 앱 확인 순서
 
-1. Supabase SQL Editor에서 `supabase/step11-devices.sql`을 검토하고 실행합니다(기기 승인 표). 실행 전에는 승인 요청이 `503 device_registry_unavailable`이고 자료실은 열리지 않습니다.
-2. 배포 주소 `/`를 열고 로그인합니다. 정상 결과: 「이 기기 승인」이 `미승인` 또는 `승인 대기`로 보이고 메모 자료실은 숨겨져 있으며 메모 요청이 나가지 않습니다(개발자 도구 Network 에 `/api/notes` 없음).
-3. 「기기 승인 요청」을 누릅니다. 정상 결과: `승인 대기`. 이 단계에서는 아직 자료가 보이지 않아야 합니다.
-4. 화면의 기기 ID 를 확인해 관리자가 승인합니다(SQL 파일 맨 아래 `update` 문, 또는 강사 계정으로 `PUT /api/admin/devices/:id` 본문 `{"status":"approved"}`).
-5. 「승인 상태 다시 확인」을 누릅니다. 정상 결과: `승인됨`, 기존 메모 목록·추가·수정·삭제가 그대로 동작합니다.
-6. 거부되어야 할 결과: 토큰 없는 `/api/device/status`·`/api/device/register` → `401`, 승인 회수(`revoked`) 뒤 다시 확인 → 자료실 닫힘, 서명 머리글을 붙인 채 경로나 본문을 바꾼 요청 → `401 device_signature_invalid`, 판정기 가상 요청에서 경로·메서드가 서로 다르면 `deny`·`request_tampered`.
-7. 브라우저 메뉴의 「앱 설치」로 설치해도 2~5단계 승인 흐름은 같습니다. 오프라인이면 안내만 보이고 자료는 보이지 않습니다.
+1. `npm run device:test`(서버 승인 흐름·서명 확인 로컬 연습, 인터넷 불필요)로 12가지가 모두 `통과`인지 봅니다.
+2. 배포 주소 `/`를 엽니다. 정상 결과: 로그인 전에도 「이 기기 승인: 미승인」과 승인 안내가 보이고 메모 자료실은 숨겨져 있습니다.
+3. 로그인합니다. 정상 결과: `승인 요청 중` → `승인됨`으로 바뀐 뒤에만 기존 메모 목록·추가·수정·삭제가 열립니다. 승인 전에는 `/api/notes` 요청이 나가지 않습니다.
+4. 거부되어야 할 결과: 토큰 없는 `/api/device/status`·`/api/device/register` → `401`, 접속 앱 화면에서 서명 없이 `/api/notes` 호출 → `403 device_signature_required`, 서명 뒤 경로·본문 변경 → `401 device_signature_invalid`, 회수된 기기 → `revoked`로 자료실 닫힘, 판정기 가상 요청에서 경로·메서드가 서로 다르면 `deny`·`request_tampered`.
+5. 브라우저 메뉴의 「앱 설치」로 설치해도 승인 흐름은 같습니다(설치 상태는 참고 표시). 오프라인이면 안내만 보이고 자료는 보이지 않습니다.
+6. (선택) 기기 회수 기능을 쓰려면 Supabase SQL Editor에서 `supabase/step11-devices.sql`을 실행합니다. 이 표가 없어도 승인·서명 확인은 서버 승인 증표로 동작합니다.
 
 ## 10단계 백업에서 되살리기
 

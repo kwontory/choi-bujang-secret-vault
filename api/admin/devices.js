@@ -1,5 +1,5 @@
-// 11단계 기기 승인 관리 경로: PUT /api/admin/devices/:id  본문 { "status": "approved" | "revoked" }
-// 서버에 저장된 강사 권한표(class_instructors)에 있는 사용자만 승인·회수할 수 있습니다.
+// 11단계 기기 회수 관리 경로: PUT /api/admin/devices/:id  본문 { "status": "revoked" | "approved" }
+// 서버에 저장된 강사 권한표(class_instructors)에 있는 사용자만 회수·회수 해제할 수 있습니다. 일반 승인은 서버·판정기가 자동으로 정합니다.
 import { isStoredInstructor, json, requestBody, serverRuntime } from '../../src/zone-api.mjs';
 import { DEVICE_ID } from '../../src/device-approval.mjs';
 

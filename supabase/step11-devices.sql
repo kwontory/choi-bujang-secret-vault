@@ -1,4 +1,5 @@
--- 11단계 기기 승인 표. Supabase SQL Editor에서 검토한 뒤 실행하세요.
+-- 11단계 기기 승인 기록·회수 표(선택). Supabase SQL Editor에서 검토한 뒤 실행하세요.
+-- 승인은 서버와 판정기가 정하고(서버 승인 증표), 이 표는 승인 기록과 회수(revoked)에 씁니다. 표가 없어도 승인은 동작합니다.
 -- 서버 함수(api/device/register.js, api/device/status.js, api/admin/devices.js, api/notes.js)는
 -- 서버 전용 키로만 이 표를 씁니다. 기기 개인키는 어디에도 저장하지 않고 공개 키(x, y)만 남깁니다.
 begin;
@@ -19,11 +20,8 @@ revoke all on table public.device_registrations from public, anon, authenticated
 
 commit;
 
--- 승인 대기 기기 확인(공개 키는 출력하지 않습니다)
+-- 기기 기록 확인(공개 키는 출력하지 않습니다)
 select device_id, user_id, status, requested_at from public.device_registrations order by requested_at desc limit 20;
 
--- 기기 승인(관리자만, 화면에 보이는 기기 ID 로 바꿔 따로 실행):
--- update public.device_registrations set status = 'approved', decided_at = now()
--- where device_id = 'DEVICE_ID_HERE' and status = 'pending';
--- 승인 회수:
+-- 승인 회수(관리자만, 화면에 보이는 기기 ID 로 바꿔 따로 실행):
 -- update public.device_registrations set status = 'revoked', decided_at = now() where device_id = 'DEVICE_ID_HERE';

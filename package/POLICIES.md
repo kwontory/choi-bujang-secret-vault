@@ -13,7 +13,7 @@
 | `api.restore.verified_backup_only` (`api/restore.js`) | 10 | 사본이 없거나 검증 실패한 복구(`404`·`409`), 다른 사람 메모 복구(`404`), 감사 기록 없이 하는 복구(`503`) | `npm run restore:test` 아홉 사례 |
 | `policy.safe_copy_restore` (`scripts/policy.mjs`) | 10 | 검증 안 된 사본으로 정책 되돌리기, 확인 없는 복원 | `npm run policy:test` 여섯 사례 |
 | `request_integrity` | 11 | 메서드·경로 모양·실제 경로가 서로 맞지 않는 요청(서명 뒤 경로·메서드 변경) (`deny`·`request_tampered`) | 판정기 가상 요청 경로·메서드 변경 사례 |
-| `api.device_signature` (`api/notes.js`, `api/device/*`) | 11 | 서명이 맞지 않는 접속 앱 요청, 승인 전·회수·다른 사용자 기기의 서명 요청(`401`), 브라우저가 보낸 승인 값(`400`) | 서명 문장 변경(경로·본문) 검증 실패 확인 |
+| `api.device_signature` (`api/notes.js`, `api/device/*`) | 11 | 접속 앱(브라우저)의 서명 없는 보호 요청(`403`), 서명 뒤 경로·본문 변경·위조 증표·승인 안 된·회수된 기기(`401`), 브라우저가 보낸 승인 값(`400`) | `npm run device:test` 12가지 |
 | `starter.deny` | 시작 | 구역표에 없는 서비스·경로 (`deny`·`starter_not_ready`) | 판정기 가상 요청 알 수 없는 서비스 거부 |
 
 서버 API 확인: `api/notes.js`는 검증된 사용자 ID와 저장된 `owner_id`를 함께 조건으로 쓰고(다른 사람 메모는 `404`), `api/admin/announcements.js`는 저장된 강사 권한표(`class_instructors`)만 보고 공지 수정을 허용합니다(그 밖은 `403 instructor_only`).
