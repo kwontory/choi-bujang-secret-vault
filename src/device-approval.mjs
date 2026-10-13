@@ -134,7 +134,8 @@ export async function askDecider({ userId, deviceId, registered, now = new Date(
 }
 
 // 보호 요청의 기기 서명을 확인합니다.
-// - 접속 앱(브라우저)에서 온 보호 요청은 서명이 반드시 있어야 합니다(없으면 device_signature_required).
+// - 11단계부터 보호 요청(메모)은 서버가 승인한 기기의 설치형 앱 서명이 반드시 있어야 합니다
+//   (없으면 device_signature_required). 서명 방법은 docs/APP_SIGNING.md, 실행 예는 scripts/app-client.mjs.
 // - 서명이 있으면 서버 승인 증표·같은 사용자·같은 기기·회수 여부·서명(메서드·경로·본문 해시·시각)을 모두 확인합니다.
 //   서명 뒤 경로나 본문을 바꾸면 서명이 맞지 않아 거부됩니다.
 export async function checkSignedRequest({ supabase, identity, headers, method, path, body }) {
@@ -143,7 +144,7 @@ export async function checkSignedRequest({ supabase, identity, headers, method, 
   const timestamp = headers?.['x-aleph-timestamp'];
   const grant = headers?.['x-aleph-grant'];
   if (deviceId === undefined && signature === undefined && timestamp === undefined && grant === undefined) {
-    return fromBrowser(headers) ? { signed: false, error: 'device_signature_required' } : { signed: false };
+    return { signed: false, error: 'device_signature_required' };
   }
   if (typeof deviceId !== 'string' || !DEVICE_ID.test(deviceId)) return { signed: true, error: 'device_signature_invalid' };
   const jwk = readGrant(grant, { userId: identity.userId, deviceId });

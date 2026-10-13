@@ -73,7 +73,7 @@ export default async function handler(request, response) {
   const routeId = typeof request.query?.id === 'string' ? request.query.id : null;
   if (routeId && !UUID.test(routeId)) return json(response, 400, { error: 'invalid_note_id' });
 
-  // 11단계: 접속 앱(브라우저)에서 온 보호 요청은 서버가 승인한 기기의 서명이 있어야 합니다.
+  // 11단계: 보호 요청은 서버가 승인한 기기의 설치형 앱 서명이 있어야 합니다(docs/APP_SIGNING.md).
   // 서명이 없거나, 서명 뒤 경로나 본문을 바꿨거나, 승인 전·회수된·다른 사용자 기기의 서명이면 거부합니다.
   const signed = await checkSignedRequest({ supabase: active.supabase, identity, headers: request.headers,
     method: request.method, path: routeId ? `/api/notes/${routeId}` : '/api/notes', body: request.body });

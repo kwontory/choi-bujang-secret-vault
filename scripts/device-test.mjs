@@ -45,6 +45,8 @@ const otherUser = await deviceStatus({ supabase, identity: B, body: { ...(await 
 check('다른 사용자가 같은 증표를 쓰면 approved 아님', otherUser.body.approved === false);
 const noSig = await checkSignedRequest({ supabase, identity: A, headers: browser, method: 'GET', path: '/api/notes' });
 check('접속 앱(브라우저)의 서명 없는 보호 요청 → device_signature_required', noSig.error === 'device_signature_required');
+const noSigScript = await checkSignedRequest({ supabase, identity: A, headers: {}, method: 'GET', path: '/api/notes' });
+check('브라우저 밖(스크립트)의 서명 없는 보호 요청도 → device_signature_required', noSigScript.error === 'device_signature_required');
 const ok = await checkSignedRequest({ supabase, identity: A, headers: await d.headers('GET', '/api/notes', '', reg.body.grant, browser), method: 'GET', path: '/api/notes' });
 check('승인 기기의 서명 요청 → 통과', ok.signed && !ok.error);
 const pathChanged = await checkSignedRequest({ supabase, identity: A, headers: await d.headers('GET', '/api/notes', '', reg.body.grant, browser), method: 'GET', path: '/api/notes/44444444-4444-4444-8444-444444444444' });

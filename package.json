@@ -18,7 +18,8 @@
     "policy:restore": "node scripts/policy.mjs restore",
     "policy:test": "node scripts/policy-test.mjs",
     "restore:test": "node scripts/restore-test.mjs",
-    "device:test": "node scripts/device-test.mjs"
+    "device:test": "node scripts/device-test.mjs",
+    "app:client": "node scripts/app-client.mjs"
   },
   "engines": {
     "node": ">=22"
