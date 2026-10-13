@@ -1,5 +1,5 @@
 {
-  "step": 9,
+  "step": 10,
   "repoUrl": "https://github.com/kwontory/choi-bujang-secret-vault",
   "publicAppUrl": "https://choi-bujang-secret-vault-sooty.vercel.app",
   "sampleMarker": "SAMPLE_NOTE_1",
@@ -17,5 +17,5 @@
     "GET /api/announcements/:id"
   ],
   "originalApiUrl": "https://arsjjhghidyozzvknmqn.supabase.co/rest/v1/notes",
-  "restoreRoute": null
+  "restoreRoute": "POST /api/restore/notes/:id"
 }

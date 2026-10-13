@@ -10,6 +10,8 @@
 | `zone_announcements_read_only` | 8 | 반 공지 쓰기 POST·PUT·PATCH·DELETE (`deny`·`announcement_write_denied`), API에서도 `403 announcement_write_denied` | 판정기 가상 요청 `PUT /announcements/:id` 거부, 비로그인 `/api/announcements` `401` |
 | `zone_instructor_materials_closed` | 8 | 강사 자료 구역의 모든 동작 (`deny`·`instructor_material_denied`), API에서도 `403` | 판정기 가상 요청 `materials` 서비스 거부 |
 | `detect.burst_read` (탐지 규칙, `src/detect.mjs`) | 9 | 낯선 네트워크 + 10분 안 121건 이상 조회한 가상 도플갱어 → `propose_revocation`·`burst_read`·대상 기기 한 개 (판정기 응답과 별개) | `npm run detect:test` 여섯 사례, 평소 네트워크 다량 조회는 `observe` |
+| `api.restore.verified_backup_only` (`api/restore.js`) | 10 | 사본이 없거나 검증 실패한 복구(`404`·`409`), 다른 사람 메모 복구(`404`), 감사 기록 없이 하는 복구(`503`) | `npm run restore:test` 아홉 사례 |
+| `policy.safe_copy_restore` (`scripts/policy.mjs`) | 10 | 검증 안 된 사본으로 정책 되돌리기, 확인 없는 복원 | `npm run policy:test` 여섯 사례 |
 | `starter.deny` | 시작 | 구역표에 없는 서비스·경로 (`deny`·`starter_not_ready`) | 판정기 가상 요청 알 수 없는 서비스 거부 |
 
 서버 API 확인: `api/notes.js`는 검증된 사용자 ID와 저장된 `owner_id`를 함께 조건으로 쓰고(다른 사람 메모는 `404`), `api/admin/announcements.js`는 저장된 강사 권한표(`class_instructors`)만 보고 공지 수정을 허용합니다(그 밖은 `403 instructor_only`).

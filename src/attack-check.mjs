@@ -1,7 +1,7 @@
 // The student changes this check as each stage adds an attack to the same app.
 // Never return tokens, private keys, real names, or note bodies.
 export async function runAttackChecks(config) {
-  if (![1, 2, 3, 4, 5, 6, 7, 8, 9].includes(config.step)) throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
+  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10].includes(config.step)) throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
   let app;
   try {
     app = new URL(config.publicAppUrl);
@@ -119,6 +119,29 @@ export async function runAttackChecks(config) {
               && ordinary?.action === 'observe'
               ? '로컬 탐지 규칙 가상 사건에서 의심만 회수 제안, 정상은 observe 확인 (실제 회수는 미실행)'
               : `로컬 탐지 결과가 기대와 다름 (${suspicious?.action}/${ordinary?.action})`,
+          });
+        }
+        if (config.step >= 10) {
+          // 복구 경로에 로그인 없는 GET 한 건만 보냅니다(격리 환경에서는 GET·HEAD 만 보냅니다).
+          const restore = await fetch(new URL('/api/restore/notes/00000000-0000-4000-8000-000000000000', app), {
+            redirect: 'error', signal: AbortSignal.timeout(10000),
+          });
+          attempts.push({
+            attackId: 'anonymous_restore_call',
+            expected: '토큰 없는 복구 경로 호출은 자료 없이 거부',
+            observed: [401, 403].includes(restore.status)
+              ? `비로그인 복구 호출이 거부됨 (HTTP ${restore.status})`
+              : `비로그인 복구 호출 거부를 확인하지 못함 (HTTP ${restore.status})`,
+          });
+          attempts.push({
+            attackId: 'restore_b_note',
+            expected: '시험 계정 B 메모 변조·삭제 뒤 복구 경로로 ID·소유자·내용 해시가 사본과 같게 한 건만 복원',
+            observed: 'not_run · 시험 계정 B 로그인과 쓰기 요청이 필요해 직접 점검 미실행(로컬 npm run restore:test 별도)',
+          });
+          attempts.push({
+            attackId: 'post_restore_retest',
+            expected: '복구 뒤 1~9단계 정상 요청은 통과, 금지 요청은 다시 거부',
+            observed: 'not_run · 로그인이 필요한 재시험은 직접 점검 미실행(위 비로그인 점검만 실행)',
           });
         }
         attempts.push({

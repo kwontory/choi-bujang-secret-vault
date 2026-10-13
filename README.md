@@ -1,4 +1,4 @@
-# BYTE BACK 방어전 · 9단계 저장점
+# BYTE BACK 방어전 · 10단계 저장점
 
 Supabase Auth 로그인과 서버 토큰 검증을 유지하면서, 로그인·메모 CRUD를 Vercel 서버 함수로 통일했습니다. 비밀번호, JWT, 서버 전용 키는 저장소·응답·로그에 넣지 않습니다.
 
@@ -17,6 +17,7 @@ Supabase Auth 로그인과 서버 토큰 검증을 유지하면서, 로그인·�
   - 구역표에 없는 서비스는 `starter.deny`(`starter_not_ready`). 메모 주인 비교는 판정기가 아니라 `api/notes.js`가 검증된 사용자 ID와 저장된 `owner_id`로 합니다. 자료 ID 형식은 판정기에서 좁히지 않습니다.
 - 반 공지 API(`/api/announcements`, `/api/announcements/:id`)는 로그인한 사용자의 GET만 받고 쓰기는 `403 announcement_write_denied`입니다. 공지 수정은 강사 관리 경로 `PUT /api/admin/announcements/:id`에서만 하며, 서버에 저장된 강사 권한표(`class_instructors`)에 있는 학생 로그인 사용자만 통과하고 그 밖에는 `403 instructor_only`입니다. 강사 자료 API(`/api/materials/:id`)는 로그인 없으면 `401`, 있어도 `403 instructor_material_denied`입니다. 화면 메뉴나 요청 본문의 `role` 값은 믿지 않으며, 메모 본문에 `role`을 넣으면 `400`으로 거부합니다.
 - 9단계 탐지: `src/detect.mjs`의 `detect(events)`는 가상 사건에서 가명 사용자(`identity.sub`)·기기(`deviceId`)·요청 종류(`method`)·판정(`decision`)·시각·네트워크만 읽고, 메모 본문·토큰·실명은 읽거나 돌려주지 않습니다. 같은 사용자의 `GET`이 어느 10분 구간에서든 120건을 넘고, 네트워크 정보가 있으면 그 구간에 평소와 다른 네트워크 조회가 있을 때만 `{ action: 'propose_revocation', reasonCode: 'burst_read', subject, deviceId }`를 돌려줍니다. 평소 네트워크(`usual`) 조회는 다량 조회 수에 넣지 않고, 지역 값은 판단에 쓰지 않습니다. 대상 기기는 의심 구간에서 가장 많이 나온 확인된 가상 기기 한 개입니다. 그 밖에는 `{ action: 'observe' }`입니다. 이 결과는 판정기 응답과 별개이며, 판정기의 허용·거부 응답 형식은 바꾸지 않았습니다. 회수 API는 만들지 않았고 실제 회수와 경과 시간은 반 엔진과 심판이 확인합니다.
+- 10단계 복구: 메모를 만들 때, 그리고 사본이 없는 메모를 처음 고치거나 지우기 직전에 침해 전 사본(`note_backups`)을 남기고, 생성·수정·삭제·복구마다 감사 기록(`note_audit`, 본문 없이 해시만)을 덧붙입니다. 복구 경로 `POST /api/restore/notes/:id`는 사본을 다시 읽어 ID·소유자·내용 해시를 검증한 뒤 그 한 건만 되살립니다. 안전 정책 사본(`policy/safe-policy.json`)과 시험 정책(`policy/test-policy.json`)은 `npm run policy:diff`·`policy:restore`로 대조·복원합니다.
 - `/data.json`은 빈 메모 배열이고 `/aleph.json`과 `X-Content-Type-Options: nosniff`를 유지합니다. 원본 자료 API 주소는 `aleph.config.json`에 기록합니다.
 
 `supabase/step4-policy.sql`은 anon 권한을 회수하고 authenticated에 필요한 네 작업만 부여하는 제안 SQL입니다. 소유자별 RLS도 포함합니다. Supabase에는 검토·실행 후에야 적용됩니다.
@@ -36,6 +37,46 @@ Supabase Auth 로그인과 서버 토큰 검증을 유지하면서, 로그인·�
 - `anon`에 메모 테이블 권한이 없고 `authenticated`에는 SELECT·INSERT·UPDATE·DELETE만 있는지 SQL 출력으로 확인합니다.
 - 브라우저 파일과 응답에 `SUPABASE_SECRET_KEY` 또는 서버 비밀키가 없는지 확인합니다.
 - `npm run test:step3`으로 발급자 정보, 실제 CRUD 경로, 공식 로그인 흐름, 서버 토큰 검증기 사용을 확인합니다.
+
+## 10단계 백업에서 되살리기
+
+### 준비(한 번)
+
+1. Supabase SQL Editor에서 `supabase/step10-backup.sql`을 검토하고 실행합니다. 사본 표 `note_backups`, 감사 표 `note_audit`가 생기고, 지금 소유자가 있는 메모마다 첫 사본이 만들어집니다. 마지막 결과의 `backups`와 `verified` 수가 같아야 합니다. 감사 표는 서버 키로도 수정·삭제할 수 없습니다.
+2. 실행 전에는 복구 경로가 사본을 읽지 못해 `503 backup_unavailable`로 멈춥니다. 메모 화면은 그대로 동작합니다.
+
+### 메모 한 건 복구 (서비스 `notes`, 경로 `POST /api/restore/notes/:id`)
+
+- `aleph.config.json`의 `restoreRoute`에 같은 경로를 적었습니다. 시험 계정 B의 메모로만 확인합니다.
+- 순서: 로그인 확인(없으면 `401`) → 사본을 다시 읽어 ID·소유자·내용 해시 검증(사본 없음 `404 backup_not_found`, 검증 실패 `409 backup_unverified`, 이때는 복원하지 않음) → 바뀔 항목 계산 → 감사 기록 먼저 남김(실패하면 `503 audit_unavailable`로 멈춤) → 그 한 건만 복원(삭제된 메모는 같은 ID·소유자로 다시 만듦) → 다시 읽어 사본과 대조(다르면 `500 restore_mismatch`).
+- 본문에 `{ "dryRun": true }`를 보내면 복원하지 않고 사본 버전·바뀔 항목만 돌려줍니다.
+- 다른 사람 메모의 ID는 `404`, 같은 ID가 다른 사용자 것이면 `409 owner_conflict`, 본문의 `owner_id`·`role`은 `400`입니다. 다른 메모와 감사 기록은 바꾸지 않고, 응답에 메모 본문을 넣지 않습니다.
+- 정상 결과: B가 자기 메모를 변조하거나 삭제한 뒤 호출 → `200`, `restored: true`, `restoredSha256`이 `backupSha256`과 같음. 이어서 `GET /api/notes/:id`로 원래 제목·본문이 보입니다.
+- 로컬 연습: `npm run restore:test`(메모리 안 가짜 저장소, 배포 확인 아님).
+
+### 안전 정책 사본 대조·복원
+
+1. `npm run policy:diff`: 침해 전에 검증한 사본(`policy/safe-policy.json`, 버전 `stage9-985f492`)을 다시 읽어 해시를 검증하고, 시험 정책과 다른 규칙만 보여 줍니다. 사본이 없거나 검증 실패면 멈춥니다. 운영 판정기 규칙 이름은 읽기만 하고 비교 결과만 적습니다.
+2. `npm run policy:restore`: 복원할 버전과 바뀔 항목만 보여 주고 멈춥니다.
+3. `npm run policy:restore -- --yes`: 확인한 뒤 시험 정책의 규칙 표만 사본으로 되돌립니다. 다른 서비스 규칙(`otherServices`)과 감사 이력(`audit`)은 보존하고 복원 기록을 한 줄 덧붙입니다. `src/decider.mjs`, `aleph.config.json`, Supabase 권한(실제 운영 정책)은 바꾸지 않습니다.
+4. 로컬 연습: `npm run policy:test`(임시 폴더 사본으로 변조→대조→확인→복원, 저장소 파일은 바꾸지 않음).
+
+### 복구 뒤 1~9단계 재시험 순서
+
+복구한 뒤 아래 순서로 다시 실행합니다. 결과 칸은 실제로 실행한 것만 적고, 실행하지 않은 시험은 `미실행`으로 둡니다.
+
+| 순서 | 단계 | 정상 요청 (통과해야 함) | 금지 요청 (거부되어야 함) | 방법 | 결과 |
+|---|---|---|---|---|---|
+| 1 | 1·2 | `/` 첫 화면 `200` | `/data.json`에 메모 본문 없음(`notes: []`) | 브라우저·`npm run bundle` | 미실행 |
+| 2 | 3 | 로그인 뒤 `GET /api/notes` `200` | 토큰 없는 `GET /api/notes`·`/api/notes/:id` → `401` | 시크릿 창·`npm run bundle` | 미실행 |
+| 3 | 4·5 | A 로그인으로 자기 메모 CRUD | A·B가 상대 메모 ID로 조회·수정·삭제·복구 → `404` | A/B 실습 계정 | 미실행 |
+| 4 | 6 | 등록 기기 요청 `allow` | 미등록 기기 `deny`·`device_not_registered` | `npm run decider:test` | 미실행 |
+| 5 | 7 | 정상 접속 `allow`, 다시 확인한 접속 `allow` | 복합 이상 접속 `step_up`·`step_up_required` | `npm run decider:test`, `npm run fixture:7` | 미실행 |
+| 6 | 8 | 자기 메모 한 건 `allow`, 공지 읽기 `allow` | 메모 전체 목록·공지 쓰기·강사 자료 `deny`, 비로그인 `/api/announcements`·`/api/materials` → `401` | 판정기 가상 요청, 시크릿 창 | 미실행 |
+| 7 | 9 | 평소 네트워크 조회 `observe` | 낯선 네트워크 다량 조회 `propose_revocation` | `npm run detect:test` | 미실행 |
+| 8 | 10 | B 메모 복구 `200`·해시 일치, 정책 대조 차이 없음 | 사본 없음·검증 실패 시 복원 멈춤, 비로그인 복구 `401` | `npm run restore:test`, `npm run policy:diff`, 시험 계정 B | 미실행 |
+
+실제 실행 결과는 날짜와 함께 이 표의 결과 칸에 적습니다. 로컬 연습 명령의 통과는 배포 복구나 심판 판정이 아닙니다.
 
 ## 9단계 탐지 확인 순서
 

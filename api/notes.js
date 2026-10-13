@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import config from '../aleph.config.json' with { type: 'json' };
 import { createLoginVerifier } from '../src/verify-login.mjs';
+import { appendAudit, contentSha256, ensureBackup } from '../src/note-backup.mjs';
 
 // 8단계: 메모 응답마다 구역 이름이 붙은 자원 ID(note:<id>)를 함께 돌려줍니다.
 const noteResourceId = id => `note:${id}`;
@@ -48,6 +49,19 @@ const noteInput = request => {
   return { title, body };
 };
 
+// 10단계: 바꾸거나 지우기 전에 내 메모의 현재 상태를 읽고, 사본이 없으면 첫 사본을 만듭니다.
+const ownNoteBeforeChange = async (supabase, id, ownerId) => {
+  try {
+    const { data, error } = await supabase.from('notes').select('id, owner_id, title, content')
+      .eq('id', id).eq('owner_id', ownerId).maybeSingle();
+    if (error || !data) return null;
+    await ensureBackup(supabase, data);
+    return { sha256: contentSha256(data.title, data.content) };
+  } catch {
+    return null;
+  }
+};
+
 export default async function handler(request, response) {
   const active = serverRuntime();
   if (!active) return json(response, 503, { error: 'server_not_configured' });
@@ -80,6 +94,10 @@ export default async function handler(request, response) {
       id, owner_id: identity.userId, title: input.title, content: input.body,
     });
     if (error) return json(response, 502, { error: 'note_create_failed' });
+    // 10단계: 새 메모의 첫 사본과 감사 기록을 남깁니다(실패해도 생성은 유지).
+    await ensureBackup(active.supabase, { id, owner_id: identity.userId, title: input.title, content: input.body });
+    await appendAudit(active.supabase, { action: 'create', noteId: id, ownerId: identity.userId,
+      actorId: identity.userId, afterSha256: contentSha256(input.title, input.body) });
     return json(response, 201, { id, resourceId: noteResourceId(id) });
   }
 
@@ -97,23 +115,29 @@ export default async function handler(request, response) {
   if (request.method === 'PUT' && routeId) {
     const input = noteInput(request);
     if (!input) return json(response, 400, { error: 'invalid_note' });
+    const before = await ownNoteBeforeChange(active.supabase, routeId, identity.userId);
     const { data, error } = await active.supabase.from('notes')
       .update({ title: input.title, content: input.body })
       .eq('id', routeId).eq('owner_id', identity.userId)
       .select('id, title, content').maybeSingle();
     if (error) return json(response, 502, { error: 'note_update_failed' });
     if (!data) return json(response, 404, { error: 'note_not_found' });
+    await appendAudit(active.supabase, { action: 'update', noteId: routeId, ownerId: identity.userId,
+      actorId: identity.userId, beforeSha256: before?.sha256, afterSha256: contentSha256(data.title, data.content) });
     return json(response, 200, {
       id: data.id, resourceId: noteResourceId(data.id), title: data.title, body: data.content,
     });
   }
 
   if (request.method === 'DELETE' && routeId) {
+    const before = await ownNoteBeforeChange(active.supabase, routeId, identity.userId);
     const { data, error } = await active.supabase.from('notes')
       .delete().eq('id', routeId).eq('owner_id', identity.userId)
       .select('id').maybeSingle();
     if (error) return json(response, 502, { error: 'note_delete_failed' });
     if (!data) return json(response, 404, { error: 'note_not_found' });
+    await appendAudit(active.supabase, { action: 'delete', noteId: routeId, ownerId: identity.userId,
+      actorId: identity.userId, beforeSha256: before?.sha256 });
     return json(response, 200, { deleted: true });
   }
 

@@ -1,0 +1,94 @@
+{
+  "schema": "aleph.test-policy.v1",
+  "note": "시험 정책 작업 사본입니다. 복원은 npm run policy:restore 로만 합니다.",
+  "rules": [
+    {
+      "id": "starter.deny",
+      "layer": "decider",
+      "effect": "deny",
+      "target": "구역표에 없는 서비스·경로"
+    },
+    {
+      "id": "device_registered",
+      "layer": "decider",
+      "effect": "deny",
+      "target": "미등록 기기·기기 ID 형식 오류",
+      "reasonCode": "device_not_registered"
+    },
+    {
+      "id": "step_up_required",
+      "layer": "decider",
+      "effect": "step_up",
+      "target": "낯선 지역·시각·네트워크·대량 행동, 출처 불명 접속 정보",
+      "reasonCode": "step_up_required"
+    },
+    {
+      "id": "zone_notes_item_only",
+      "layer": "decider",
+      "effect": "allow_only",
+      "service": "notes",
+      "allow": [
+        "GET /notes/:id",
+        "PUT /notes/:id",
+        "DELETE /notes/:id"
+      ],
+      "deny": [
+        "GET /notes",
+        "POST /notes"
+      ],
+      "reasonCode": "note_list_denied"
+    },
+    {
+      "id": "zone_announcements_read_only",
+      "layer": "decider",
+      "effect": "allow_only",
+      "service": "announcements",
+      "allow": [
+        "GET /announcements",
+        "GET /announcements/:id"
+      ],
+      "deny": [
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE"
+      ],
+      "reasonCode": "announcement_write_denied"
+    },
+    {
+      "id": "zone_instructor_materials_closed",
+      "layer": "decider",
+      "effect": "deny",
+      "service": "materials",
+      "reasonCode": "instructor_material_denied"
+    },
+    {
+      "id": "api.notes.owner_only",
+      "layer": "api",
+      "effect": "deny",
+      "target": "검증된 사용자와 저장된 owner_id 가 다른 메모 조회·수정·삭제·복구",
+      "status": 404
+    },
+    {
+      "id": "api.login_required",
+      "layer": "api",
+      "effect": "deny",
+      "target": "토큰 없는 자료 API 요청",
+      "status": 401
+    },
+    {
+      "id": "db.notes.anon_revoked",
+      "layer": "database",
+      "effect": "deny",
+      "target": "공개 키(anon)로 notes 표 직접 읽기",
+      "source": "supabase/step4-policy.sql"
+    }
+  ],
+  "otherServices": {
+    "xdr": {
+      "source": "xdr/",
+      "note": "보너스 XDR 판정 모듈 규칙은 이 복원 대상이 아닙니다."
+    }
+  },
+  "audit": []
+}
