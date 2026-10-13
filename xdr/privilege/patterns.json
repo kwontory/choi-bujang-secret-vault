@@ -1,0 +1,10 @@
+{
+  "moduleKey": "privilege",
+  "basis": "MITRE ATT&CK T1068 (Exploitation for Privilege Escalation) · T1078 (Valid Accounts)",
+  "patterns": [
+    { "name": "관리자 그룹 추가", "match": "평범한 계정이 원격·처음 보는 주소에서 관리자 그룹(administrators)에 추가되거나, 빠졌다가 곧 다시 들어오거나, 같은 주소에서 여러 계정이 추가됨", "action": "block", "basis": "T1078 / T1098.007 Additional Local or Domain Groups — 도용한 정상 계정에 관리자 권한을 붙임" },
+    { "name": "처음 보는 관리자 명령", "match": "방금 관리자가 된 계정·다른 계정 권한·처음 보는 주소에서 관리자 명령을 실행하거나 세션이 관리자 권한으로 바뀜", "action": "block", "basis": "T1068 — 권한 상승을 악용해 관리자 명령 실행" },
+    { "name": "업무 시간 밖 권한 사용", "match": "수업·업무 시간 밖에 관리자 그룹 추가나 관리자 명령이 있음", "action": "block", "basis": "T1078 — 정상 계정 도용 시 평소와 다른 시각의 권한 사용" },
+    { "name": "권한 상승 의심", "match": "T1068/T1078 태그 경보지만 관리자 그룹이 아닌 그룹 추가·취소된 권한 상승 창·평소 주소의 명령 1회 등 신호가 약함", "action": "alert", "basis": "T1068 / T1078 태그 — 명확한 근거 없어 사람 확인" }
+  ]
+}
