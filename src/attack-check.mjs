@@ -1,7 +1,7 @@
 // The student changes this check as each stage adds an attack to the same app.
 // Never return tokens, private keys, real names, or note bodies.
 export async function runAttackChecks(config) {
-  if (![1, 2, 3, 4, 5, 6, 7, 8].includes(config.step)) throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
+  if (![1, 2, 3, 4, 5, 6, 7, 8, 9].includes(config.step)) throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
   let app;
   try {
     app = new URL(config.publicAppUrl);
@@ -102,6 +102,25 @@ export async function runAttackChecks(config) {
             ? `비로그인 공지 요청이 거부됨 (HTTP ${notice.status})`
             : `비로그인 공지 요청 거부를 확인하지 못함 (HTTP ${notice.status})`,
         });
+        if (config.step >= 9) {
+          // 가상 사건을 로컬 탐지 규칙에 넣어 본 결과입니다. 실제 회수와 경과 시간은 심판이 확인합니다.
+          const { detect } = await import('./detect.mjs');
+          const start = Date.parse('2026-10-01T00:00:00.000Z');
+          const reads = (count, network, deviceId) => Array.from({ length: count }, (_, index) => ({
+            at: new Date(start + index * 2000).toISOString(), method: 'GET',
+            identity: { sub: 'learner_fixture' }, deviceId, network,
+          }));
+          const suspicious = detect(reads(200, 'unusual', 'b'.repeat(16)));
+          const ordinary = detect(reads(200, 'usual', 'a'.repeat(16)));
+          attempts.push({
+            attackId: 'doppelganger_detect',
+            expected: '낯선 네트워크 다량 조회만 기기 한 개 대상 propose_revocation, 평소 네트워크는 observe',
+            observed: suspicious?.action === 'propose_revocation' && suspicious?.deviceId === 'b'.repeat(16)
+              && ordinary?.action === 'observe'
+              ? '로컬 탐지 규칙 가상 사건에서 의심만 회수 제안, 정상은 observe 확인 (실제 회수는 미실행)'
+              : `로컬 탐지 결과가 기대와 다름 (${suspicious?.action}/${ordinary?.action})`,
+          });
+        }
         attempts.push({
           attackId: 'cross_zone_write',
           expected: '학생 계정의 다른 메모 수정·강사 공지 수정은 API에서 거부',

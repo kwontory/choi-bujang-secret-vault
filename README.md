@@ -1,4 +1,4 @@
-# BYTE BACK 방어전 · 8단계 저장점
+# BYTE BACK 방어전 · 9단계 저장점
 
 Supabase Auth 로그인과 서버 토큰 검증을 유지하면서, 로그인·메모 CRUD를 Vercel 서버 함수로 통일했습니다. 비밀번호, JWT, 서버 전용 키는 저장소·응답·로그에 넣지 않습니다.
 
@@ -16,6 +16,7 @@ Supabase Auth 로그인과 서버 토큰 검증을 유지하면서, 로그인·�
   - 강사 자료(`materials`, `zone_instructor_materials_closed`): 모든 요청을 `instructor_material_denied`로 거부.
   - 구역표에 없는 서비스는 `starter.deny`(`starter_not_ready`). 메모 주인 비교는 판정기가 아니라 `api/notes.js`가 검증된 사용자 ID와 저장된 `owner_id`로 합니다. 자료 ID 형식은 판정기에서 좁히지 않습니다.
 - 반 공지 API(`/api/announcements`, `/api/announcements/:id`)는 로그인한 사용자의 GET만 받고 쓰기는 `403 announcement_write_denied`입니다. 공지 수정은 강사 관리 경로 `PUT /api/admin/announcements/:id`에서만 하며, 서버에 저장된 강사 권한표(`class_instructors`)에 있는 학생 로그인 사용자만 통과하고 그 밖에는 `403 instructor_only`입니다. 강사 자료 API(`/api/materials/:id`)는 로그인 없으면 `401`, 있어도 `403 instructor_material_denied`입니다. 화면 메뉴나 요청 본문의 `role` 값은 믿지 않으며, 메모 본문에 `role`을 넣으면 `400`으로 거부합니다.
+- 9단계 탐지: `src/detect.mjs`의 `detect(events)`는 가상 사건에서 가명 사용자(`identity.sub`)·기기(`deviceId`)·요청 종류(`method`)·판정(`decision`)·시각·네트워크만 읽고, 메모 본문·토큰·실명은 읽거나 돌려주지 않습니다. 같은 사용자의 `GET`이 어느 10분 구간에서든 120건을 넘고, 네트워크 정보가 있으면 그 구간에 평소와 다른 네트워크 조회가 있을 때만 `{ action: 'propose_revocation', reasonCode: 'burst_read', subject, deviceId }`를 돌려줍니다. 평소 네트워크(`usual`) 조회는 다량 조회 수에 넣지 않고, 지역 값은 판단에 쓰지 않습니다. 대상 기기는 의심 구간에서 가장 많이 나온 확인된 가상 기기 한 개입니다. 그 밖에는 `{ action: 'observe' }`입니다. 이 결과는 판정기 응답과 별개이며, 판정기의 허용·거부 응답 형식은 바꾸지 않았습니다. 회수 API는 만들지 않았고 실제 회수와 경과 시간은 반 엔진과 심판이 확인합니다.
 - `/data.json`은 빈 메모 배열이고 `/aleph.json`과 `X-Content-Type-Options: nosniff`를 유지합니다. 원본 자료 API 주소는 `aleph.config.json`에 기록합니다.
 
 `supabase/step4-policy.sql`은 anon 권한을 회수하고 authenticated에 필요한 네 작업만 부여하는 제안 SQL입니다. 소유자별 RLS도 포함합니다. Supabase에는 검토·실행 후에야 적용됩니다.
@@ -35,6 +36,15 @@ Supabase Auth 로그인과 서버 토큰 검증을 유지하면서, 로그인·�
 - `anon`에 메모 테이블 권한이 없고 `authenticated`에는 SELECT·INSERT·UPDATE·DELETE만 있는지 SQL 출력으로 확인합니다.
 - 브라우저 파일과 응답에 `SUPABASE_SECRET_KEY` 또는 서버 비밀키가 없는지 확인합니다.
 - `npm run test:step3`으로 발급자 정보, 실제 CRUD 경로, 공식 로그인 흐름, 서버 토큰 검증기 사용을 확인합니다.
+
+## 9단계 탐지 확인 순서
+
+1. `npm run detect:test`를 실행해 여섯 줄이 모두 `통과`인지 봅니다(정상 30건·정확히 120건·다른 사용자 각 100건·10분 밖으로 흩어진 200건은 `observe`, 10분 안 121건·200건은 `propose_revocation`).
+2. `npm run decider:test`로 6·7단계 판정기 규칙이 그대로인지 봅니다.
+3. 정상 결과: 평소 네트워크의 다량 조회, 지역만 다른 조회, 낯선 네트워크의 적은 조회는 `observe`이고 정상 기기는 그대로 허용됩니다.
+4. 회수 제안이 나와야 할 결과: 낯선 네트워크와 10분 안 121건 이상 조회가 겹친 사용자 → `propose_revocation`·`burst_read`·대상 기기 한 개.
+
+`npm run detect:test` 통과는 로컬 연습일 뿐이며, 운영 반 엔진의 사건 전달·접속 회수가 연결됐다는 뜻이 아닙니다.
 
 ## 8단계 구역 확인 순서
 
