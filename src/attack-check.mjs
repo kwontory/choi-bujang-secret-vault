@@ -37,7 +37,6 @@ export async function runAttackChecks(config) {
         && data.notes.length > 0;
       staticNotes = Array.isArray(data?.notes) ? data.notes.length : null;
     } catch {
-      // A non-JSON response is a failed check, not a successful deployment.
     }
   }
   if (config.step === 1) {
@@ -48,151 +47,82 @@ export async function runAttackChecks(config) {
     redirect: 'error', signal: AbortSignal.timeout(10000),
   });
   if (config.step >= 3) {
+    const get = path => fetch(new URL(path, app), { redirect: 'error', signal: AbortSignal.timeout(10000) });
+    const refused = (attackId, expected, label, res) => ({ attackId, expected, observed: [401, 403].includes(res.status)
+      ? `비로그인 ${label}이 거부됨 (HTTP ${res.status})` : `비로그인 ${label} 거부를 확인하지 못함 (HTTP ${res.status})` });
+    const notRun = (attackId, expected, why) => ({ attackId, expected, observed: `not_run · ${why}` });
     let errorCode = null;
     try { errorCode = (await apiResponse.json())?.error ?? null; } catch { errorCode = null; }
     const attempts = [
       { attackId: 'static_note_read', expected: '정적 data.json에 메모가 없어야 함',
         observed: response.status === 404 || staticNotes === 0
-          ? `정적 메모가 노출되지 않음 (HTTP ${response.status})`
-          : `정적 메모 노출 여부를 확인하지 못함 (HTTP ${response.status})` },
+          ? `정적 메모가 노출되지 않음 (HTTP ${response.status})` : `정적 메모 노출 여부를 확인하지 못함 (HTTP ${response.status})` },
       { attackId: 'anonymous_api_read', expected: '토큰 없는 메모 목록 요청은 JSON 오류와 함께 거부',
         observed: [401, 403].includes(apiResponse.status) && typeof errorCode === 'string'
-          ? `비로그인 요청이 JSON 오류로 거부됨 (HTTP ${apiResponse.status})`
-          : `비로그인 요청 거부를 확인하지 못함 (HTTP ${apiResponse.status})` },
+          ? `비로그인 요청이 JSON 오류로 거부됨 (HTTP ${apiResponse.status})` : `비로그인 요청 거부를 확인하지 못함 (HTTP ${apiResponse.status})` },
     ];
-    if (config.step >= 4) attempts.push({
-      attackId: 'cross_owner_access',
-      expected: 'A/B 로그인에서 상대 메모의 조회·수정·삭제가 거부',
-      observed: 'A/B 실습 계정이 없어 직접 점검 미실행',
-    });
-    if (config.step >= 6) {
-      // 로컬 판정기에 미등록 기기 가상 요청 한 건을 직접 넣어 본 결과입니다. 심판 판정이 아닙니다.
-      const { fixtureRequests } = await import('../scripts/fixture-7.mjs');
-      const { decide } = await import('./decider.mjs');
-      const { normal, suspicious } = fixtureRequests();
-      const result = await decide({ ...normal, deviceRegistered: false });
-      attempts.push({
-        attackId: 'unregistered_device_read',
-        expected: '미등록 기기의 자료실 읽기 요청은 deny·device_not_registered',
-        observed: result?.decision === 'deny' && result?.reasonCode === 'device_not_registered'
-          ? '로컬 판정기 가상 요청에서 deny·device_not_registered 확인'
-          : `로컬 판정기 가상 요청 결과가 기대와 다름 (${result?.decision ?? '응답 없음'})`,
-      });
-      if (config.step >= 7) {
-        // 복합 이상 가상 사건을 로컬 판정기에 넣어 본 결과입니다. 실제 재로그인 차단은 실측하지 않았습니다.
-        const unusual = await decide(suspicious);
-        attempts.push({
-          attackId: 'unusual_access_step_up',
-          expected: '낯선 지역·시각·네트워크와 대량 사건이 겹친 접속은 step_up·step_up_required',
-          observed: unusual?.decision === 'step_up' && unusual?.reasonCode === 'step_up_required'
-            ? '로컬 판정기 가상 사건에서 step_up·step_up_required 확인 (실제 재로그인 차단은 미실행)'
-            : `로컬 판정기 가상 사건 결과가 기대와 다름 (${unusual?.decision ?? '응답 없음'})`,
-        });
-      }
-      if (config.step >= 8) {
-        // 다른 구역 요청을 로컬 판정기에 넣고, 배포에는 로그인 없는 공지 읽기 GET 한 건만 보냅니다.
-        const zoneRequest = (service, method, route, path) => ({ ...normal, service, method, route, path });
-        const list = await decide(zoneRequest('notes', 'GET', 'GET /notes', '/notes'));
-        const noticeWrite = await decide(zoneRequest('announcements', 'PUT', 'PUT /announcements/:id', '/announcements/demo'));
-        const ownRead = await decide(normal);
-        attempts.push({
-          attackId: 'zone_decider_check',
-          expected: '자기 메모 한 건 읽기는 allow, 메모 전체 목록·공지 쓰기는 deny',
-          observed: ownRead?.decision === 'allow' && list?.decision === 'deny' && noticeWrite?.decision === 'deny'
-            ? '로컬 판정기 가상 요청에서 자기 메모 allow, 전체 목록·공지 쓰기 deny 확인'
-            : `로컬 판정기 결과가 기대와 다름 (${ownRead?.decision}/${list?.decision}/${noticeWrite?.decision})`,
-        });
-        const notice = await fetch(new URL('/api/announcements', app), {
-          redirect: 'error', signal: AbortSignal.timeout(10000),
-        });
-        attempts.push({
-          attackId: 'anonymous_notice_read',
-          expected: '토큰 없는 반 공지 읽기는 자료 없이 거부',
-          observed: [401, 403].includes(notice.status)
-            ? `비로그인 공지 요청이 거부됨 (HTTP ${notice.status})`
-            : `비로그인 공지 요청 거부를 확인하지 못함 (HTTP ${notice.status})`,
-        });
-        if (config.step >= 9) {
-          // 가상 사건을 로컬 탐지 규칙에 넣어 본 결과입니다. 실제 회수와 경과 시간은 심판이 확인합니다.
-          const { detect } = await import('./detect.mjs');
-          const start = Date.parse('2026-10-01T00:00:00.000Z');
-          const reads = (count, network, deviceId) => Array.from({ length: count }, (_, index) => ({
-            at: new Date(start + index * 2000).toISOString(), method: 'GET',
-            identity: { sub: 'learner_fixture' }, deviceId, network,
-          }));
-          const suspicious = detect(reads(200, 'unusual', 'b'.repeat(16)));
-          const ordinary = detect(reads(200, 'usual', 'a'.repeat(16)));
-          attempts.push({
-            attackId: 'doppelganger_detect',
-            expected: '낯선 네트워크 다량 조회만 기기 한 개 대상 propose_revocation, 평소 네트워크는 observe',
-            observed: suspicious?.action === 'propose_revocation' && suspicious?.deviceId === 'b'.repeat(16)
-              && ordinary?.action === 'observe'
-              ? '로컬 탐지 규칙 가상 사건에서 의심만 회수 제안, 정상은 observe 확인 (실제 회수는 미실행)'
-              : `로컬 탐지 결과가 기대와 다름 (${suspicious?.action}/${ordinary?.action})`,
-          });
-        }
-        if (config.step >= 10) {
-          // 복구 경로에 로그인 없는 GET 한 건만 보냅니다(격리 환경에서는 GET·HEAD 만 보냅니다).
-          const restore = await fetch(new URL('/api/restore/notes/00000000-0000-4000-8000-000000000000', app), {
-            redirect: 'error', signal: AbortSignal.timeout(10000),
-          });
-          attempts.push({
-            attackId: 'anonymous_restore_call',
-            expected: '토큰 없는 복구 경로 호출은 자료 없이 거부',
-            observed: [401, 403].includes(restore.status)
-              ? `비로그인 복구 호출이 거부됨 (HTTP ${restore.status})`
-              : `비로그인 복구 호출 거부를 확인하지 못함 (HTTP ${restore.status})`,
-          });
-          attempts.push({
-            attackId: 'restore_b_note',
-            expected: '시험 계정 B 메모 변조·삭제 뒤 복구 경로로 ID·소유자·내용 해시가 사본과 같게 한 건만 복원',
-            observed: 'not_run · 시험 계정 B 로그인과 쓰기 요청이 필요해 직접 점검 미실행(로컬 npm run restore:test 별도)',
-          });
-          if (config.step >= 11) {
-            // 접속 앱 화면·설정에 GET 만 보냅니다. 기기 승인·서명 요청은 로그인과 승인 기기가 필요해 미실행입니다.
-            const page = await fetch(new URL('/', app), { redirect: 'error', signal: AbortSignal.timeout(10000) });
-            const html = page.ok ? await page.text() : '';
-            const manifest = await fetch(new URL('/manifest.webmanifest', app), {
-              redirect: 'error', signal: AbortSignal.timeout(10000),
-            });
-            let manifestOk = false;
-            try { const data = manifest.ok ? await manifest.json() : null; manifestOk = Boolean(data?.name && data?.start_url); } catch { manifestOk = false; }
-            attempts.push({
-              attackId: 'app_shell_before_approval',
-              expected: '접속 화면에 manifest 연결이 있고, 승인 전 화면 HTML 에 보호 자료가 없음',
-              observed: page.ok && manifestOk && html.includes('rel="manifest"') && !html.includes(config.sampleMarker)
-                ? `접속 화면·manifest 확인, 승인 전 HTML 에 자료 없음 (HTTP ${page.status}/${manifest.status})`
-                : `접속 화면 점검 결과가 기대와 다름 (HTTP ${page.status}/${manifest.status})`,
-            });
-            const deviceStatus = await fetch(new URL('/api/device/status', app), {
-              redirect: 'error', signal: AbortSignal.timeout(10000),
-            });
-            attempts.push({
-              attackId: 'anonymous_device_status',
-              expected: '토큰 없는 기기 승인 상태 확인은 거부',
-              observed: [401, 403].includes(deviceStatus.status)
-                ? `비로그인 기기 상태 확인이 거부됨 (HTTP ${deviceStatus.status})`
-                : `비로그인 기기 상태 거부를 확인하지 못함 (HTTP ${deviceStatus.status})`,
-            });
-            attempts.push({
-              attackId: 'unsigned_or_altered_request',
-              expected: '서명 없는 요청·서명 뒤 경로나 본문을 바꾼 요청은 거부',
-              observed: 'not_run · 승인된 기기와 로그인이 필요한 쓰기 요청이라 직접 점검 미실행(판정기 request_integrity 는 로컬 가상 요청으로 별도 확인)',
-            });
-          }
-          attempts.push({
-            attackId: 'post_restore_retest',
-            expected: '복구 뒤 1~9단계 정상 요청은 통과, 금지 요청은 다시 거부',
-            observed: 'not_run · 로그인이 필요한 재시험은 직접 점검 미실행(위 비로그인 점검만 실행)',
-          });
-        }
-        attempts.push({
-          attackId: 'cross_zone_write',
-          expected: '학생 계정의 다른 메모 수정·강사 공지 수정은 API에서 거부',
-          observed: 'not_run · 로그인 계정이 필요한 쓰기 요청이라 직접 점검 미실행',
-        });
-      }
+    if (config.step >= 4) attempts.push({ attackId: 'cross_owner_access',
+      expected: 'A/B 로그인에서 상대 메모의 조회·수정·삭제가 거부', observed: 'A/B 실습 계정이 없어 직접 점검 미실행' });
+    if (config.step < 6) return attempts;
+    // 6단계부터: 로컬 판정기·탐지 규칙에 가상 요청을 넣은 결과(심판 판정 아님)
+    const { fixtureRequests } = await import('../scripts/fixture-7.mjs');
+    const { decide } = await import('./decider.mjs');
+    const { normal, suspicious } = fixtureRequests();
+    const local = (attackId, expected, ok, okText, got) => ({ attackId, expected,
+      observed: ok ? `로컬 가상 요청에서 ${okText} 확인` : `로컬 가상 요청 결과가 기대와 다름 (${got})` });
+    const unregistered = await decide({ ...normal, deviceRegistered: false });
+    attempts.push(local('unregistered_device_read', '미등록 기기의 자료실 읽기 요청은 deny·device_not_registered',
+      unregistered?.reasonCode === 'device_not_registered', 'deny·device_not_registered', unregistered?.decision));
+    if (config.step >= 7) {
+      const unusual = await decide(suspicious);
+      attempts.push(local('unusual_access_step_up', '낯선 지역·시각·네트워크와 대량 사건이 겹친 접속은 step_up·step_up_required',
+        unusual?.decision === 'step_up', 'step_up·step_up_required (실제 재로그인 차단은 미실행)', unusual?.decision));
     }
+    if (config.step >= 8) {
+      const zone = (service, method, route, path) => decide({ ...normal, service, method, route, path });
+      const list = await zone('notes', 'GET', 'GET /notes', '/notes');
+      const write = await zone('announcements', 'PUT', 'PUT /announcements/:id', '/announcements/demo');
+      const own = await decide(normal);
+      attempts.push(local('zone_decider_check', '자기 메모 한 건 읽기는 allow, 메모 전체 목록·공지 쓰기는 deny',
+        own?.decision === 'allow' && list?.decision === 'deny' && write?.decision === 'deny',
+        '자기 메모 allow, 전체 목록·공지 쓰기 deny', `${own?.decision}/${list?.decision}/${write?.decision}`));
+      attempts.push(refused('anonymous_notice_read', '토큰 없는 반 공지 읽기는 자료 없이 거부', '공지 요청', await get('/api/announcements')));
+    }
+    if (config.step >= 9) {
+      const { detect } = await import('./detect.mjs');
+      const start = Date.parse('2026-10-01T00:00:00.000Z');
+      const reads = (network, deviceId) => Array.from({ length: 200 }, (_, index) => ({
+        at: new Date(start + index * 2000).toISOString(), method: 'GET', identity: { sub: 'learner_fixture' }, deviceId, network }));
+      const bad = detect(reads('unusual', 'b'.repeat(16)));
+      const fine = detect(reads('usual', 'a'.repeat(16)));
+      attempts.push(local('doppelganger_detect', '낯선 네트워크 다량 조회만 기기 한 개 대상 propose_revocation, 평소 네트워크는 observe',
+        bad?.action === 'propose_revocation' && bad?.deviceId === 'b'.repeat(16) && fine?.action === 'observe',
+        '의심만 회수 제안, 정상은 observe (실제 회수는 미실행)', `${bad?.action}/${fine?.action}`));
+    }
+    if (config.step >= 10) {
+      attempts.push(refused('anonymous_restore_call', '토큰 없는 복구 경로 호출은 자료 없이 거부', '복구 호출',
+        await get('/api/restore/notes/00000000-0000-4000-8000-000000000000')));
+      attempts.push(notRun('restore_b_note', '시험 계정 B 메모 변조·삭제 뒤 복구 경로로 ID·소유자·내용 해시가 사본과 같게 한 건만 복원',
+        '시험 계정 B 로그인과 쓰기 요청이 필요해 직접 점검 미실행(로컬 npm run restore:test 별도)'));
+    }
+    if (config.step >= 11) {
+      const page = await get('/');
+      const html = page.ok ? await page.text() : '';
+      const manifest = await get('/manifest.webmanifest');
+      let manifestOk = false;
+      try { const data = manifest.ok ? await manifest.json() : null; manifestOk = Boolean(data?.name && data?.start_url); } catch { manifestOk = false; }
+      attempts.push({ attackId: 'app_shell_before_approval', expected: '접속 화면에 manifest 연결이 있고, 승인 전 화면 HTML 에 보호 자료가 없음',
+        observed: page.ok && manifestOk && html.includes('rel="manifest"') && !html.includes(config.sampleMarker)
+          ? `접속 화면·manifest 확인, 승인 전 HTML 에 자료 없음 (HTTP ${page.status}/${manifest.status})`
+          : `접속 화면 점검 결과가 기대와 다름 (HTTP ${page.status}/${manifest.status})` });
+      attempts.push(refused('anonymous_device_status', '토큰 없는 기기 승인 상태 확인은 거부', '기기 상태 확인', await get('/api/device/status')));
+      attempts.push(notRun('unsigned_or_altered_request', '서명 없는 요청·서명 뒤 경로나 본문을 바꾼 요청은 거부',
+        '승인된 기기와 로그인이 필요해 직접 점검 미실행(로컬 npm run device:test 별도)'));
+    }
+    if (config.step >= 10) attempts.push(notRun('post_restore_retest', '복구 뒤 1~9단계 정상 요청은 통과, 금지 요청은 다시 거부',
+      '로그인이 필요한 재시험은 직접 점검 미실행(위 비로그인 점검만 실행)'));
+    if (config.step >= 8) attempts.push(notRun('cross_zone_write', '학생 계정의 다른 메모 수정·강사 공지 수정은 API에서 거부',
+      '로그인 계정이 필요한 쓰기 요청이라 직접 점검 미실행'));
     return attempts;
   }
   let apiCount = null;
