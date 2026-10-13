@@ -12,8 +12,9 @@ async function probe(base, path, headers = {}, caseId) {
     const res = await fetch(new URL(path, base), { headers: { accept: 'application/json', ...headers }, redirect: 'manual', alephEvidence: { caseId, requestKey: 'read' } });
     const text = await res.text();
     let ready; try { ready = JSON.parse(text).ready; } catch {}
+    let approved; try { approved = JSON.parse(text).approved; } catch {}
     let manifest = false; try { const m = JSON.parse(text); manifest = Boolean(m.name && m.start_url && m.display === 'standalone'); } catch {}
-    return { ran: true, status: res.status, ready, manifest, hasNotes: /"content"\s*:|"body"\s*:/u.test(text) };
+    return { ran: true, status: res.status, ready, approved, manifest, hasNotes: /"content"\s*:|"body"\s*:/u.test(text) };
   } catch (error) {
     return { ran: false, error: String(error?.message || error).slice(0, 80) };
   }
@@ -30,7 +31,8 @@ const denied = r => (r.status === 401 || r.status === 403 || r.status === 404) &
 const noStaticNotes = r => !r.hasNotes && (denied(r) || r.status === 200);
 
 export async function runAttackChecks(baseUrl) {
-  const base = new URL(baseUrl);
+  // 배포 주소 문자열을 받습니다. 설정 객체(aleph.config.json)를 넘겨도 그 publicAppUrl 을 씁니다.
+  const base = new URL(typeof baseUrl === 'string' || baseUrl instanceof URL ? baseUrl : baseUrl?.publicAppUrl);
   const out = [];
   out.push(attempt('s01-static-notes', 1, '/data.json 에 메모가 없음', await probe(base, '/data.json', {}, 's01-static-notes'), noStaticNotes));
   out.push(attempt('s02-static-copy', 2, '다른 정적 사본 없음', await probe(base, '/notes.json', {}, 's02-static-copy'), denied));
@@ -41,8 +43,8 @@ export async function runAttackChecks(baseUrl) {
   out.push(attempt('s05-direct-table', 5, '원본 주소 직접 읽기 거부', await probe(base, '/rest/v1/notes', {}, 's05-direct-table'), denied));
   out.push(attempt('s08-other-zone', 8, '반 공지 로그인 없이 거부', await probe(base, '/api/announcements', {}, 's08-other-zone'), denied));
   out.push(attempt('s10-restore-unauth', 10, '로그인 없는 복원 요청 거부', await probe(base, `/api/restore/notes/${TEST_UUID}`, {}, 's10-restore-unauth'), denied));
-  out.push(attempt('s11-device', 11, '로그인·서명 없는 기기 상태 확인 거부', await probe(base, '/api/device/status', {}, 's11-device'), denied));
-  out.push(attempt('s11-app-manifest', 11, '설치형 앱 manifest 제공', await probe(base, '/manifest.webmanifest', {}, 's11-app-manifest'), r => r.status === 200 && r.manifest && !r.hasNotes));
+  out.push(attempt('s11-device', 11, '승인 전 기기 상태(approved=false)', await probe(base, '/api/device/status', {}, 's11-device'), r => r.status === 200 && r.approved === false && !r.hasNotes));
+  out.push(attempt('s11-app-manifest', 11, '설치형 앱 manifest 제공', await probe(base, '/manifest.json', {}, 's11-app-manifest'), r => r.status === 200 && r.manifest && !r.hasNotes));
 
   // 가상 규칙 입력을 배포된 점검 API에서 실행하고, runner가 같은 HTTP 응답을 관측하게 한다.
   for (const [attackId, stage, expected] of [

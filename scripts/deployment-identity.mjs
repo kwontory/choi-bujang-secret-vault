@@ -8,10 +8,14 @@ export function deploymentIdentity(env, config) {
   const repo = env.VERCEL_GIT_REPO_SLUG;
   const commit = env.VERCEL_GIT_COMMIT_SHA;
   const host = env.VERCEL_URL;
+  // 2단계부터는 심판이 읽는 공개 주소(config.publicAppUrl)를 적습니다. VERCEL_URL 은 배포마다 바뀌는
+  // 개별 배포 주소라 Vercel 배포 보호로 막혀 있을 수 있습니다.
+  const publicAppUrl = config?.step >= 2 && typeof config.publicAppUrl === 'string' ? config.publicAppUrl : `https://${host}`;
+  const publicHost = typeof publicAppUrl === 'string' && /^https:\/\/([^/]+)\/?$/u.exec(publicAppUrl)?.[1];
   if (env.VERCEL_GIT_PROVIDER !== 'github' || !OWNER.test(owner || '')
       || !REPO.test(repo || '') || repo === '.' || repo === '..'
       || repo.toLowerCase().endsWith('.git') || !SHA.test(commit || '')
-      || !HOST.test(host || '') || !Number.isInteger(config?.step)
+      || !HOST.test(host || '') || !HOST.test(publicHost || '') || !Number.isInteger(config?.step)
       || config.step < 1 || config.step > 12
       || typeof config.judgeIssuer !== 'string'
       || !/^https:\/\/[a-z0-9-]+\.up\.railway\.app\/defense\/judge$/iu.test(config.judgeIssuer)
@@ -26,10 +30,14 @@ export function deploymentIdentity(env, config) {
     step: config.step,
     repoUrl: `https://github.com/${owner.toLowerCase()}/${repo.toLowerCase()}`,
     commit: commit.toLowerCase(),
-    publicAppUrl: `https://${host.toLowerCase()}`,
+    publicAppUrl: `https://${publicHost.toLowerCase()}`,
     judgeIssuer: config.judgeIssuer,
     sampleMarker: config.sampleMarker,
     ...(Array.isArray(config.allowedRoutes) ? { allowedRoutes: config.allowedRoutes } : {}),
     ...(config.step >= 5 ? { originalApiUrl: config.originalApiUrl } : {}),
+    ...(config.step >= 10 && typeof config.restoreRoute === 'string' ? { restoreRoute: config.restoreRoute } : {}),
+    ...(config.step >= 3 && config.identityProvider && typeof config.identityProvider === 'object' ? { identityProvider: {
+      issuer: config.identityProvider.issuer, audience: config.identityProvider.audience, jwksUrl: config.identityProvider.jwksUrl,
+    } } : {}),
   };
 }
