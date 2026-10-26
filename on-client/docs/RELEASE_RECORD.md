@@ -96,9 +96,56 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\start-alekov.ps1
 | 학생 코드·문서 | Git 저장소(`on-client/student/`, `on-client/docs/`, `README.md`) | 단계마다 커밋하고 GitHub `origin` 에 push. 원래 작업 폴더는 지우지 않음 | `git clone` 후 해당 커밋 `checkout`. 되돌릴 때는 `git revert` 나 특정 파일만 `git checkout <커밋> -- <파일>`, `git reset --hard` 는 쓰지 않음 | push 하지 않은 커밋은 PC 에만 있음 |
 | 1~12단계 기록·이전 성취 | 같은 저장소 루트와 이전 브랜치(`step2-storage` 등) | 지우거나 덮어쓰지 않음 | 브랜치·커밋으로 확인 | — |
 | 실행 설정 | 프로세스 환경변수(`ON_PORT` 등), 예시는 `on-client/.env.example` | 비밀이 없는 예시만 커밋 | 예시를 보고 다시 지정 | 실제 `.env`·`bundle-notes.json`·`artifacts/` 는 커밋하지 않음(`.gitignore`) |
-| 조치 기록 DB | 담당자가 지정한 SDP 호스트 설정의 `databasePath`(프로젝트 밖) | 학생 저장소에 넣지 않음 | 담당자 절차 | 기본 실행에서는 만들어지지 않음(지원 조치 없음) |
+| 조치 기록 DB | SDP 호스트 설정 JSON 의 `databasePath` 가 가리키는 기존 SQLite 파일(프로젝트·Git 밖 절대경로) | 7.1 의 절차로 서버를 멈춘 뒤 날짜별 사본 | 7.1 의 복원 순서와 복원 뒤 확인 | 기본 실행에서는 열지도 만들지도 않음(지원 조치 없음, `ACTION_UNSUPPORTED`) |
 | AI 앱 열쇠 보관함 | 신뢰된 호스트가 구성하는 Windows 경로(프로젝트 밖) | 학생이 복사·커밋하지 않음 | 계정 연결·AI 승인을 다시 진행 | 화면·도움정보·Git 에 나오지 않음 |
 | 브라우저 화면 상태(필터·선택) | 브라우저 메모리 | 보존하지 않음(새로고침 시 초기화) | 다시 선택 | 의도된 동작 |
+
+### 7.1 조치 기록 DB 백업·복원 절차
+
+근거(원문 확인): `on-client/src/actions/store.mjs` 는 새 DB 를 만들지 않고, 호스트 설정의 `databasePath` 가 가리키는 **이미 있는 SQLite 파일**(절대경로, 일반 파일 1개, 심볼릭 링크·하드 링크 아님)에 `alekov_action_intents`·`alekov_action_state`·`alekov_action_audit` 세 표만 추가합니다. intents·audit 표는 트리거로 수정·삭제가 막혀 있고(`ACTION_HISTORY_IMMUTABLE`), 잠금 대기 시간이 0(`busy_timeout=0`)이라 다른 프로그램이 파일을 쓰는 중이면 `ACTION_STORE_FAILED` 로 실패합니다. 사람 확인 티켓은 원문이 아니라 SHA-256 해시만 저장됩니다.
+
+**백업 대상**: `databasePath` 의 SQLite 파일 하나. 같은 폴더에 같은 이름의 `-journal`·`-wal`·`-shm` 파일이 있으면 서버가 정상 종료되지 않은 것이므로 먼저 서버를 다시 켰다가 `Ctrl+C` 로 정상 종료합니다.
+
+**백업 시점**: ① 시작 틀 업데이트 전, ② SDP 호스트 설정(`-SdpHostConfig` JSON)을 바꾸기 전, ③ 조치를 준비·집행한 날의 작업 종료 후, ④ PC 이전·초기화 전.
+
+**저장 위치**: 프로젝트 폴더·Git 저장소·제출 ZIP **밖**, 호스트 설정 파일과 같은 비공개 위치 아래의 백업 폴더(예: `C:\AlekovPrivate\backup\`). 파일 안에 계정·프로젝트 범위(`scope_json`)와 요청 ID 가 있으므로 커밋·채팅·도움정보에 붙이지 않습니다.
+
+**백업 순서 (PowerShell)**
+
+1. 앱을 실행한 PowerShell 창에서 `Ctrl+C` 로 서버를 멈춥니다(다른 프로그램도 이 DB 를 쓰지 않는 상태).
+2. 사본을 만듭니다. 경로는 호스트 설정의 실제 `databasePath` 로 바꿉니다.
+   ```powershell
+   $db = "C:\AlekovPrivate\app.db"            # 호스트 설정의 databasePath
+   $dst = "C:\AlekovPrivate\backup\app-$(Get-Date -Format yyyyMMdd-HHmm).db"
+   New-Item -ItemType Directory -Force (Split-Path $dst) | Out-Null
+   Copy-Item -LiteralPath $db -Destination $dst
+   ```
+   서버를 멈출 수 없으면 대신 읽기 전용으로 일관된 사본을 만듭니다(앱 폴더에서 실행). 명령 안에 큰따옴표가 없도록 JS 문자열은 백틱으로 썼습니다(Windows PowerShell 5.1 이 안쪽 큰따옴표를 지우는 문제 회피):
+   ```powershell
+   node -e 'const {DatabaseSync}=require(`node:sqlite`);const d=new DatabaseSync(process.argv[1],{readOnly:true});d.prepare(`VACUUM INTO ?`).run(process.argv[2]);d.close()' $db $dst
+   ```
+3. 사본을 검사합니다. `integrity_check: 'ok'` 와 표 목록에 `alekov_action_audit,alekov_action_intents,alekov_action_state` 가 보여야 합니다.
+   ```powershell
+   node -e 'const {DatabaseSync}=require(`node:sqlite`);const d=new DatabaseSync(process.argv[1],{readOnly:true});console.log(d.prepare(`PRAGMA integrity_check`).get());console.log(d.prepare(`SELECT name FROM sqlite_master WHERE type=? ORDER BY name`).all(`table`).map(r=>r.name).join());d.close()' $dst
+   ```
+
+**복원 순서**
+
+1. 서버를 `Ctrl+C` 로 멈춥니다.
+2. 현재 DB 는 지우지 않고 이름을 바꿔 보존합니다: `Rename-Item -LiteralPath $db -NewName ("app-before-restore-" + (Get-Date -Format yyyyMMdd-HHmm) + ".db")`
+3. 백업 사본을 원래 `databasePath` 이름으로 **복사**합니다(링크를 만들지 않음 — 링크면 `ACTION_UNSUPPORTED`): `Copy-Item -LiteralPath $dst -Destination $db`
+4. 백업 3번의 검사 명령 끝의 `$dst` 를 `$db` 로 바꿔 복원된 파일에 실행하고, `ok` 와 세 표를 확인합니다.
+5. 같은 `-SdpHostConfig` 로 서버를 다시 켭니다.
+
+**복원 뒤 확인**: ① 서버가 `ACTION_UNSUPPORTED`·`ACTION_STORE_FAILED` 없이 켜지는지, ② 백업 전에 기록해 둔 요청 ID 로 「원천 결과만 재조회」를 눌러 같은 영수증 ID(receiptId)가 보이는지, ③ 상태가 결과 불명(unknown)이면 성공·효과 없음으로 판단하지 않고 결과 재조회만 하는지.
+
+**제한**
+
+- 복원은 이 PC 의 조치 요청·상태·감사 기록만 되돌립니다. 연동 시스템(SDP)에서 이미 일어난 조치 효과는 되돌리지 않습니다. 백업 뒤에 처리된 조치는 복원본에 없으므로 원천 결과 재조회로 현재 상태를 다시 확인합니다.
+- 백업에 있던 준비(prepared) 요청의 사람 확인 기한은 복원해도 늘어나지 않습니다. 기한이 지났으면 다시 준비합니다.
+- 다른 학생·프로젝트·호스트 설정의 DB 로 복원하지 않습니다. 신원·프로젝트·세션이 다르면 서버가 결과 공개를 거절합니다.
+- 서버가 켜진 채 `Copy-Item` 으로 복사하면 쓰는 중인 내용이 섞일 수 있어 쓰지 않습니다(그때는 `VACUUM INTO` 사용).
+- 확인 범위: 사본 만들기(`Copy-Item` 대신 Linux `cp`)와 위 두 `node -e` 명령(같은 문자열을 bash 작은따옴표로 실행)은 Node v22.23.4 의 임시 SQLite 파일로 **실행 확인**했습니다. 실제 조치 기록 DB 에서의 백업·복원과 Windows PowerShell 실행은 지원 조치가 없어 DB 가 만들어지지 않으므로 **미확인**입니다.
 
 ## 8. 지원 범위와 미해결 사항
 
