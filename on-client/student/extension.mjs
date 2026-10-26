@@ -471,31 +471,92 @@ function renderAiConnection({ status, mode, data, error, checkedAt, explanationA
   return root;
 }
 
-// 17단계 기초(18단계에서 넓힘): 고른 사건의 AI 설명. 성공한 설명에만 data-student-explanation-event 를 붙인다.
+// 18단계: 고른 사건의 AI 설명을 그 기록의 근거·규칙·현재 상태와 연결해 보여 준다.
+// 매번 입력만으로 새로 그려 다른 기록 선택·다시 불러오기·실패 뒤 이전 설명과 성공 속성이 남지 않는다.
+// 성공 표식 data-student-explanation-event 는 근거가 이 기록과 맞는 성공 설명에만 붙인다. 실행 버튼은 만들지 않는다.
 function renderExplanation({ event, explanation, checkedAt } = {}) {
   const root = el('div', null, 'student-explanation');
   const ex = isObj(explanation) ? explanation : {};
-  const id = isObj(event) && event.id != null && event.id !== '' ? String(event.id) : null;
-  const note = ex.status === 'ok' && modeNote(ex.mode);
-  if (note) root.append(note);
-  if (ex.status === 'ok' && id && isObj(ex.data) && isText(ex.data.summary)) {
-    root.dataset.studentExplanationEvent = id;
-    const dl = el('dl', null, 'identity');
-    pair(dl, '사건 ID', id);
-    pair(dl, '설명 시각', timeText(checkedAt, '시각 정보 없음'));
-    root.append(el('h4', 'AI 설명(참고용)'), dl, el('p', ex.data.summary),
-      el('p', 'AI 의 해석입니다. 사실 판단은 기록의 근거와 현재 상태로 하세요. 제안은 자동으로 실행하지 않습니다.', 'muted'));
-  } else if (ex.status === 'error') {
+  const ev = isObj(event) && event.id != null && event.id !== '' ? event : null;
+  const id = ev ? String(ev.id) : null;
+  const KEPT = '기록은 그대로입니다. AI 설명 실패는 기록 오류나 과제 실패가 아니며, 업무 앱 판정과 보안 기록은 계속 쓸 수 있습니다.';
+  const rejected = (reason, code) => {
+    root.append(el('p', `AI 설명을 쓸 수 없습니다${id ? ` · 사건 ${id}` : ''}${code ? ` [${aiCode(code)}]` : ''}: ${reason}`, 'state state-error'),
+      el('p', `내용을 지어내거나 맞춰 표시하지 않습니다. ${KEPT}`, 'muted'));
+    return root;
+  };
+  // 1) 실패를 먼저: event 가 없어도 안전한 code·message 와 실패 까닭을 보여 준다.
+  if (ex.status === 'error') {
     const err = isObj(ex.error) ? ex.error : {};
     const code = aiCode(err.code);
-    root.append(el('p', `AI 설명 실패${id ? ` · 사건 ${id}` : ''} — ${aiCause(code)[0]} [${code}]: ${aiMsg(err)}`, 'state state-error'),
-      el('p', '기록은 그대로입니다. AI 설명 실패는 기록 오류나 과제 실패가 아닙니다. 필요하면 직접 다시 요청하세요.', 'muted'));
-  } else if (ex.status === 'loading') {
-    root.append(el('p', `AI 설명 요청 중${id ? ` · 사건 ${id}` : ''}`, 'state state-loading'));
-  } else if (ex.status === 'idle' || ex.status == null) {
-    root.append(el('p', '아직 AI 설명을 요청하지 않았습니다. 보안 기록에서 기록을 골라 설명을 요청하세요.', 'state state-empty'));
+    const why = code === 'ON_AI_INVALID_OUTPUT' ? '근거 부족·근거 불일치·실행했다고 답한 설명 등 응답이 이 기록과 맞지 않습니다'
+      : code === 'ON_AI_INVALID_INPUT' ? '설명에 필요한 사건 근거·규칙이 부족합니다' : aiCause(code)[0];
+    root.append(el('p', `AI 설명 실패${id ? ` · 사건 ${id}` : ''} [${code}]: ${aiMsg(err)}`, 'state state-error'),
+      el('p', `실패 까닭: ${why}`), el('p', `${KEPT} 필요하면 직접 다시 요청하세요.`, 'muted'));
+    return root;
+  }
+  if (!ev) {
+    root.append(el('p', '보안 기록에서 기록을 먼저 고르세요. 고른 기록이 없어 AI 설명을 표시하지 않습니다.', 'state state-empty'));
+    return root;
+  }
+  if (ex.status === 'loading') {
+    root.append(el('p', `AI 설명 요청 중 · 사건 ${id}`, 'state state-loading'));
+    return root;
+  }
+  if (ex.status === 'idle' || ex.status == null) {
+    root.append(el('p', `사건 ${id}: 아직 AI 설명을 요청하지 않았습니다.`, 'state state-empty'));
+    return root;
+  }
+  const d = isObj(ex.data) ? ex.data : null;
+  if (ex.status !== 'ok' || !d || !isText(d.summary)) return rejected('설명 상태나 형식을 확인할 수 없습니다(확인 불가).');
+  // 2) 실행했다고 답한 설명은 쓰지 않는다. 제안은 사람 확인 전 미실행이어야 한다.
+  if (d.executed !== false || d.requiresHumanConfirmation !== true) return rejected('AI 가 조치를 이미 실행했다고 답했거나 사람 확인 조건이 없습니다. 설명·제안만으로 조치는 실행되지 않습니다.');
+  // 3) 근거 ID 는 이 기록의 evidence 와 하나도 빠짐없이 맞아야 한다. 없는 ID 를 만들어 맞추지 않는다.
+  const evidence = new Map((Array.isArray(ev.evidence) ? ev.evidence : []).filter((x) => isObj(x) && isText(x.id)).map((x) => [x.id, x.text]));
+  const cited = Array.isArray(d.evidenceIds) ? d.evidenceIds : null;
+  if (!cited || cited.length === 0) return rejected('인용한 근거가 없습니다(근거 부족).');
+  const missing = cited.filter((x) => !isText(x) || !evidence.has(x));
+  if (missing.length > 0) return rejected(`근거가 맞지 않습니다. 이 기록에 없는 근거 ID: ${missing.map(String).join(', ')} (다른 기록의 설명일 수 있음)`);
+  const supported = Array.isArray(ev.supportedActions) ? ev.supportedActions.filter(isText) : [];
+  const proposals = Array.isArray(d.proposals) ? d.proposals : null;
+  if (!proposals) return rejected('조치 제안 형식을 확인할 수 없습니다.');
+  for (const p of proposals) {
+    if (!isObj(p) || !isText(p.action) || !supported.includes(p.action)) return rejected(`이 기록이 지원하지 않는 조치 제안이 있습니다(${isObj(p) ? String(p.action) : '형식 오류'}).`);
+    if (!Array.isArray(p.evidenceIds) || p.evidenceIds.some((x) => !evidence.has(x))) return rejected(`조치 제안 ${p.action} 의 근거가 이 기록과 맞지 않습니다.`);
+  }
+
+  // 성공: 이 기록과 근거가 맞는 설명에만 성공 표식을 붙인다.
+  root.dataset.studentExplanationEvent = id;
+  const note = modeNote(ex.mode);
+  if (note) root.append(note);
+  const dl = el('dl', null, 'identity');
+  pair(dl, '사건 ID', id);
+  pair(dl, '설명 시각', timeText(checkedAt, '시각 정보 없음'));
+  root.append(el('h4', 'AI 설명(참고용)'), dl, el('p', d.summary),
+    el('p', 'AI 의 해석입니다. 사실 판단은 아래 근거 글과 연동 시스템이 알려 준 현재 상태로 하세요.', 'muted'));
+  const block = (title, lines, empty) => {
+    const box = el('div');
+    box.append(el('h5', title));
+    if (lines.length === 0) box.append(el('p', empty, 'muted'));
+    else {
+      const ul = el('ul');
+      for (const line of lines) ul.append(el('li', line));
+      box.append(ul);
+    }
+    root.append(box);
+  };
+  block('인용한 근거', cited.map((x) => `${x} — ${isText(evidence.get(x)) ? evidence.get(x) : '근거 글 없음'}`), '없음');
+  block('규칙', (Array.isArray(ev.rules) ? ev.rules.filter(isObj) : []).map((r) => `${isText(r.id) ? r.id : 'ID 없음'} — ${isText(r.text) ? r.text : '규칙 글 없음'}`), '규칙 없음');
+  // 확인 불가 상태: 접속·세션·기기별로, unknown 이거나 알 수 없는 값은 정상·안전으로 바꾸지 않는다.
+  const st = isObj(ev.state) ? ev.state : {};
+  const unknown = [['접속', 'access', ACCESS], ['세션', 'session', SESSION], ['기기', 'device', DEVICE]]
+    .filter(([, k, labels]) => !isText(st[k]) || st[k] === 'unknown' || !Object.hasOwn(labels, st[k]))
+    .map(([name, k]) => `${name}: 확인 불가(${isText(st[k]) ? st[k] : 'unknown'})`);
+  block('확인할 수 없는 현재 상태', unknown, '없음');
+  if (proposals.length === 0) {
+    block('조치 제안', [], supported.length === 0 ? '연동 시스템이 지원하는 조치가 없어 제안이 없습니다(정상).' : 'AI 가 이 기록에 맞는 조치를 제안하지 않았습니다.');
   } else {
-    root.append(el('p', 'AI 설명 확인 불가: 사건이나 설명 형식을 확인할 수 없어 표시하지 않습니다. 기록은 그대로입니다.', 'state state-error'));
+    block('조치 제안(사람 확인 필요 · 실행되지 않음)', proposals.map((p) => `${p.action} — ${isText(p.reason) ? p.reason : '이유 없음'} (근거 ${p.evidenceIds.join(', ')}) · 사람 확인이 필요하며 실행되지 않았습니다.`), '없음');
   }
   return root;
 }
