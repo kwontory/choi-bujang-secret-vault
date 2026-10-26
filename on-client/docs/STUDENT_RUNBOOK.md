@@ -73,6 +73,8 @@ choi-bujang-secret-vault/          ← Git 최상위(커밋·push·제출 기준
 | 학생 코드 문법 확인 | `npm run check` (= `node --check student/extension.mjs`) | 아무 출력 없이 끝나면 정상 |
 | 포트 변경 | 실행 도구 뒤에 ` -Port 5190`, 또는 환경변수 `ON_PORT` | 브라우저 주소도 `:5190` 으로 엽니다 |
 
+서버는 `.env` 파일을 자동으로 읽지 않고 프로세스 환경변수만 읽습니다. `on-client/.env.example` 은 쓸 수 있는 이름과 비밀 없는 예시 값을 보여 주는 견본이며, 필요하면 같은 PowerShell 창에서 `$env:ON_PORT = "5190"` 처럼 지정한 뒤 `npm start` 를 실행합니다.
+
 Node 22 에서는 `ExperimentalWarning: SQLite is an experimental feature` 경고가 한 번 보일 수 있습니다. 조치 기록 저장(`src/actions/store.mjs`)이 Node 내장 SQLite 를 쓰기 때문이며 실행 실패가 아닙니다(**확인함**, Node v22.23.4).
 
 ### 4.3 브라우저에서 확인

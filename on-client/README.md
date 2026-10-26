@@ -37,3 +37,5 @@ npm start도 같은 서버를 켭니다. 기본 실행은 실제 회사 시스�
 - **학생이 고친 파일**: `student/extension.mjs`(표시 함수 8개), `docs/STUDENT_RUNBOOK.md`, 이 절. 제공 서버·화면·도구는 고치지 않았습니다.
 
 실행·종료·재실행 순서, Mermaid 구성도와 같은 내용의 글 설명, 제공/학생 경계, 확인함·미확인 목록, 오류별 확인 순서는 [docs/STUDENT_RUNBOOK.md](docs/STUDENT_RUNBOOK.md)에 있습니다.
+
+버전(0.9.0, 검증 중 — v1.0 아님), 새 폴더 재현 기록, 13~21단계별 결과와 미확인 원인, 데이터 보존 계획은 [docs/RELEASE_RECORD.md](docs/RELEASE_RECORD.md)에 있습니다.
