@@ -412,6 +412,94 @@ function renderStatus({ devices, sessions, notifications, diagnostics, mode } = 
   return root;
 }
 
+// 17단계: AI 오류 code 를 원인별 안내로 나눈다. 정확한 code 를 먼저, 그 밖은 code 안의 낱말로 고른다.
+const AI_CAUSES = [
+  ['권한 준비 중·확인 불가', '학생 잘못이 아닙니다. 운영 측의 계정·앱 권한 준비가 끝나지 않았거나 확인할 수 없습니다. 담당자에게 계정 연결과 앱 권한 확인을 요청하세요.',
+    /^(ON_AI_PROVISIONING_PENDING|ON_AI_AUTHORIZATION_CHANGED|SUBJECT_SCOPE_UNVERIFIED|AI_REQUEST_UNVERIFIED|CONTRACT_MISMATCH|ENGINE_RESULT_UNVERIFIED)$|PROVISION|UNVERIFIED/],
+  ['인증 실패', '보호 현황의 계정 연결과 AI 연결을 다시 확인하고, 계속되면 담당자에게 확인하세요. 열쇠를 복사해 붙이지 마세요.', /AUTH/],
+  ['접근 제한', '학생 앱의 이용 권한이 제한됐습니다. 계정 연결을 다시 확인하고 담당자에게 확인하세요.', /ACCESS|BLOCK|FORBIDDEN|DENIED/],
+  ['사용량·이용 한도 초과', '반의 AI 사용량 또는 이용 한도에 도달했습니다. 담당자에게 확인하세요.', /BUDGET|LIMIT_REACHED|QUOTA/],
+  ['이용 시간 아님', '지금은 AI 이용 시간이 아닙니다. 이용 시간을 확인하세요.', /SESSION_CLOSED|OUTSIDE_HOURS/],
+  ['요청 제한', 'AI 요청이 잠시 제한됐습니다. 잠시 뒤 직접 다시 점검하세요.', /RATE/],
+  ['시간 초과', '응답이 제한 시간 안에 오지 않아 점검이 끝났습니다(시간 초과). 잠시 뒤 직접 다시 점검하세요.', /TIMEOUT/],
+  ['네트워크 오류', '네트워크 연결 문제로 응답을 받지 못했습니다. 잠시 뒤 직접 다시 점검하세요.', /NETWORK|FETCH|OFFLINE|UNREACHABLE/],
+  ['취소됨', '사용자가 요청을 취소했습니다. 이전 점검 결과는 현재 결과가 아니며 표시하지 않습니다.', /CANCEL|ABORT/],
+  ['쓸 수 있는 모델 없음', '현재 권한으로 쓸 수 있는 AI 모델이 없습니다. 담당자에게 모델 허용 설정 확인을 요청하세요.', /MODEL/],
+];
+const aiCause = (code) => AI_CAUSES.find(([, , re]) => re.test(code))
+  || ['원인 확인 불가', '오류 원인을 확인할 수 없습니다. 성공으로 보지 말고 담당자에게 확인하세요.'];
+const aiCode = (v) => (typeof v === 'string' && /^[A-Z0-9_]{1,64}$/.test(v) ? v : 'UNKNOWN');
+const AI_SECRET = /(?:Bearer\s+\S+|sk-[A-Za-z0-9_-]{8,}|eyJ[A-Za-z0-9_-]{10,}\S*|(?:api[_ -]?key|token|secret|password)\s*[:=]\s*\S+)/gi;
+const aiMsg = (err) => (isText(err.message) ? err.message.replace(AI_SECRET, '[가림]') : '서버 메시지 없음');
+const MANUAL = '다시 점검은 「현재 API 연결 점검」 버튼을 직접 누르세요. 자동으로 다시 점검하지 않습니다.';
+
+// 17단계: AI 연결 점검(모델 응답)만 보여 준다. 사건 설명 실행과 구분한다.
+// 매번 입력만으로 새로 그리고 이전 결과를 저장하지 않아, 재점검 성공·idle·취소 뒤 옛 결과(오류 안내·모델 수)가 남지 않는다.
+function renderAiConnection({ status, mode, data, error, checkedAt, explanationAccepted } = {}) {
+  const root = el('div', null, 'student-ai-connection');
+  root.dataset.studentAiStatus = isText(status) ? status : 'unknown';
+  // 연결 모드(예제 자료 등)는 점검 결과가 있을 때만 함께 안내한다.
+  const note = status === 'ok' && modeNote(mode);
+  if (note) root.append(note);
+  if (status === 'idle') {
+    root.append(el('p', 'AI 연결 점검 전: 아직 점검을 실행하지 않았습니다. 이전 점검 결과는 표시하지 않습니다.', 'state state-empty'),
+      el('p', '연결 완료 뒤 「현재 API 연결 점검」을 직접 누르면 점검합니다.', 'muted'));
+  } else if (status === 'loading') {
+    root.append(el('p', 'AI 연결 점검 중: 서버를 통해 모델 응답을 확인하고 있습니다. 「취소」로 멈출 수 있습니다.', 'state state-loading'));
+  } else if (status === 'error') {
+    const err = isObj(error) ? error : {};
+    const code = aiCode(err.code);
+    const [label, guide] = aiCause(code);
+    const head = label === '취소됨' ? 'AI 연결 점검 취소됨(성공 아님)' : 'AI 연결 점검 실패';
+    root.append(el('p', `${head} — ${label} [${code}]: ${aiMsg(err)}`, 'state state-error'),
+      el('p', guide), el('p', '연결 점검이 성공하지 않았습니다. 모델 수와 이전 결과는 표시하지 않습니다.', 'muted'), el('p', MANUAL, 'muted'));
+  } else if (status === 'ok' && isObj(data) && data.transportChecked === true && ['test', 'verified'].includes(data.audienceAuthorization)
+    && Number.isInteger(data.modelCount)) {
+    const test = data.audienceAuthorization === 'test';
+    root.append(el('p', test ? 'AI 연결 점검 결과: 시험 연결 점검(test) · 실제 앱 권한 확인 아님' : 'AI 연결 점검 결과: 앱 권한 확인 후 점검(verified)', 'state state-ok'));
+    const dl = el('dl', null, 'identity');
+    pair(dl, '점검 종류', test ? '시험 연결 점검(test)' : '앱 권한 확인 후 점검(verified)');
+    pair(dl, '응답 모델 수', `${data.modelCount}개`);
+    pair(dl, '점검 시각', timeText(checkedAt, '점검 시각 정보 없음'));
+    pair(dl, '사건 설명', `아직 실행하지 않음(explanationAccepted: ${explanationAccepted === true})`);
+    root.append(dl,
+      el('p', '연결(모델 목록 응답)만 점검했습니다. 사건 설명은 아직 실행하지 않았습니다. 사건 설명은 보안 기록에서 기록을 골라 따로 요청하고 확인합니다.', 'muted'),
+      el('p', `이 결과는 ${timeText(checkedAt, '점검')} 기준입니다. ${MANUAL}`, 'muted'));
+  } else {
+    root.append(el('p', 'AI 연결 점검 확인 불가: 상태나 응답 형식을 알 수 없습니다. 성공으로 보지 마세요.', 'state state-error'), el('p', MANUAL, 'muted'));
+  }
+  return root;
+}
+
+// 17단계 기초(18단계에서 넓힘): 고른 사건의 AI 설명. 성공한 설명에만 data-student-explanation-event 를 붙인다.
+function renderExplanation({ event, explanation, checkedAt } = {}) {
+  const root = el('div', null, 'student-explanation');
+  const ex = isObj(explanation) ? explanation : {};
+  const id = isObj(event) && event.id != null && event.id !== '' ? String(event.id) : null;
+  const note = ex.status === 'ok' && modeNote(ex.mode);
+  if (note) root.append(note);
+  if (ex.status === 'ok' && id && isObj(ex.data) && isText(ex.data.summary)) {
+    root.dataset.studentExplanationEvent = id;
+    const dl = el('dl', null, 'identity');
+    pair(dl, '사건 ID', id);
+    pair(dl, '설명 시각', timeText(checkedAt, '시각 정보 없음'));
+    root.append(el('h4', 'AI 설명(참고용)'), dl, el('p', ex.data.summary),
+      el('p', 'AI 의 해석입니다. 사실 판단은 기록의 근거와 현재 상태로 하세요. 제안은 자동으로 실행하지 않습니다.', 'muted'));
+  } else if (ex.status === 'error') {
+    const err = isObj(ex.error) ? ex.error : {};
+    const code = aiCode(err.code);
+    root.append(el('p', `AI 설명 실패${id ? ` · 사건 ${id}` : ''} — ${aiCause(code)[0]} [${code}]: ${aiMsg(err)}`, 'state state-error'),
+      el('p', '기록은 그대로입니다. AI 설명 실패는 기록 오류나 과제 실패가 아닙니다. 필요하면 직접 다시 요청하세요.', 'muted'));
+  } else if (ex.status === 'loading') {
+    root.append(el('p', `AI 설명 요청 중${id ? ` · 사건 ${id}` : ''}`, 'state state-loading'));
+  } else if (ex.status === 'idle' || ex.status == null) {
+    root.append(el('p', '아직 AI 설명을 요청하지 않았습니다. 보안 기록에서 기록을 골라 설명을 요청하세요.', 'state state-empty'));
+  } else {
+    root.append(el('p', 'AI 설명 확인 불가: 사건이나 설명 형식을 확인할 수 없어 표시하지 않습니다. 기록은 그대로입니다.', 'state state-error'));
+  }
+  return root;
+}
+
 export function createStudentView() {
   return {
     renderIdentity,
@@ -419,8 +507,8 @@ export function createStudentView() {
     renderEvents,
     renderStatus,
     renderVulnerabilities() { return '학생 구현 대기: 정확한 설치 버전·OSV 출처·조회 시각·부분 결과·조회 실패를 구분하세요.'; },
-    renderAiConnection() { return '학생 구현 대기: 모델 응답 점검과 실제 사건 설명을 구분하고 AI 오류·취소·수동 복구를 안내하세요.'; },
-    renderExplanation() { return '학생 구현 대기: 선택한 사건의 근거·규칙·현재 상태와 AI 설명을 연결하세요. 제안은 자동 실행하지 않습니다.'; },
+    renderAiConnection,
+    renderExplanation,
     renderAction() { return '학생 구현 대기: 현재 사건·조치·실제 대상·사람 확인·ACK와 원천 효과·unknown을 구분하세요.'; },
   };
 }
