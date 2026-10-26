@@ -642,13 +642,97 @@ function renderAction({ status, event, actionId, target, receipt, observation, m
   return root;
 }
 
+// 20단계: package-lock.json 과 설치된 node_modules 를 대조한 정확한 설치 버전의 OSV 조회 결과.
+// 매번 입력만으로 새로 그려, 조회 중·실패·취소 때 이전 표를 현재 결과처럼 남기지 않는다(늦은 응답은 제공 화면이 버림).
+// 조회 실패·미조회·확인 불가를 "취약점 없음"으로 보이지 않게 한다. 결과 없음도 안전 보장이 아니다.
+function renderVulnerabilities({ status, mode, data, error } = {}) {
+  const SCAN = {
+    complete: ['모두 조회', '승인된 공개 패키지를 모두 조회했습니다.', 'state state-ok'],
+    partial: ['일부 조회 실패', '일부 패키지는 조회를 확인할 수 없습니다. 이미 받은 취약점 ID 는 그대로 보여 줍니다.', 'state state-error'],
+    not_checked: ['아직 조회 안 함', '승인된 공개 조회 대상 패키지가 없어 OSV 조회를 하지 않았습니다. 취약점 없음이 아닙니다. 허용 목록은 담당자가 준비합니다.', 'state state-empty'],
+    not_configured: ['조회 준비 미완료', '조회 대상 프로젝트 설정이 필요합니다. 조회하지 않았으며 취약점 없음이 아닙니다. 설정은 담당자가 준비합니다.', 'state state-empty'],
+    unverifiable: ['lock 파일 확인 불가', 'package-lock.json 을 확인할 수 없어 조회하지 않았습니다. 취약점 없음이 아닙니다.', 'state state-error'],
+  };
+  const PKG = { known_vulnerabilities: '알려진 항목 있음', none_found: '알려진 항목 없음', unverifiable: '조회 확인 불가' };
+  const EXACT = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
+  const NOTE = 'OSV 는 알려진 취약점 데이터베이스입니다. 조회 결과가 없다는 사실만으로 패키지나 앱 전체가 안전하다고 보장할 수 없습니다.';
+  const RETRY = '다시 조회는 보호 현황의 설치 패키지 조회 버튼을 직접 누르세요. 자동으로 다시 조회하지 않습니다.';
+  const root = el('div', null, 'student-vulnerabilities');
+  if (status === 'idle') {
+    root.append(el('p', '조회 전: 아직 설치 패키지 조회를 실행하지 않았습니다. 취약점 없음이 아닙니다.', 'state state-empty'), el('p', RETRY, 'muted'));
+    return root;
+  }
+  if (status === 'loading') {
+    root.append(el('p', '조회 중: 설치 패키지를 OSV 와 대조하고 있습니다. 이전 결과는 현재 결과가 아니라 표시하지 않습니다.', 'state state-loading'));
+    return root;
+  }
+  if (status === 'error') {
+    const err = isObj(error) ? error : {};
+    const code = aiCode(err.code);
+    const why = /CANCEL|ABORT/.test(code) ? '조회를 취소했습니다' : /TIMEOUT/.test(code) ? '응답 시간이 초과됐습니다' : '조회가 실패했습니다';
+    root.append(el('p', `조회 실패 — ${why} [${code}]: ${aiMsg(err)}`, 'state state-error'),
+      el('p', `조회 실패는 취약점 없음이 아닙니다. 이전 표는 현재 결과가 아니라 지웠습니다. ${RETRY}`, 'muted'));
+    return root;
+  }
+  const d = isObj(data) ? data : null;
+  if (status !== 'ok' || !d || !Object.hasOwn(SCAN, d.status)) {
+    root.append(el('p', '확인 불가: 조회 결과 형식을 알 수 없어 표시하지 않습니다. 취약점 없음이 아닙니다.', 'state state-error'), el('p', RETRY, 'muted'));
+    return root;
+  }
+  const note = modeNote(mode);
+  if (note) root.append(note);
+  const [label, desc, cls] = SCAN[d.status];
+  root.append(el('p', `전체 조회 상태: ${label}(${d.status})`, cls), el('p', desc));
+  // 전체 결과: lock 파일 버전·해시·확인 시각은 전달된 것만.
+  const dl = el('dl', null, 'identity');
+  if (d.lockfileVersion != null) pair(dl, 'lockfileVersion', String(d.lockfileVersion));
+  if (isText(d.lockfileHash)) pair(dl, 'lockfileHash', d.lockfileHash);
+  if (isText(d.checkedAt)) pair(dl, '확인 시각(checkedAt)', timeText(d.checkedAt, '확인 불가'));
+  if (isText(d.code)) pair(dl, '상태 코드', aiCode(d.code));
+  if (isObj(d.excluded) && Number.isSafeInteger(d.excluded.count)) pair(dl, '조회에서 제외한 패키지 수', `${d.excluded.count}개(승인되지 않았거나 공개 조회 대상이 아님)`);
+  if (dl.children.length) root.append(dl);
+  root.append(el('p', 'package-lock.json 과 설치된 node_modules 메타데이터를 대조한 정확한 설치 버전만 조회합니다. ^1.2.0 같은 버전 범위는 설치 버전으로 표시하지 않습니다.', 'muted'));
+
+  const pkgs = Array.isArray(d.packages) ? d.packages.filter(isObj) : [];
+  if (pkgs.length === 0) {
+    root.append(el('p', d.status === 'complete' || d.status === 'partial' ? '조회한 패키지가 0개입니다.' : '조회한 패키지가 없습니다(미조회).', 'state state-empty'));
+  } else {
+    const ul = el('ul', null, 'plain-list');
+    for (const p of pkgs) {
+      const name = isText(p.name) ? p.name : '이름 확인 불가';
+      const exact = isText(p.version) && EXACT.test(p.version);
+      const version = exact ? p.version : '정확한 버전 확인 불가';
+      const vulns = Array.isArray(p.vulnerabilities) ? p.vulnerabilities.filter(isObj) : [];
+      const ps = Object.hasOwn(PKG, p.status) ? p.status : 'unverifiable';
+      let text = `${PKG[ps]}(${isText(p.status) ? p.status : 'unknown'})`;
+      if (ps === 'none_found') text += ' · 조회 범위에서 알려진 취약점 항목이 없다는 뜻이며 안전 보장이 아님';
+      if (ps === 'unverifiable') text += vulns.length ? ' · 일부 확인·전체 조회 확인 불가' : ' · 조회를 확인할 수 없음(취약점 없음 아님)';
+      const li = el('li');
+      li.dataset.studentPackageName = name;
+      li.dataset.studentPackageVersion = exact ? p.version : 'unknown';
+      li.append(el('span', `${name}@${version}`, 'item-title'),
+        el('p', `상태: ${text}`, ps === 'none_found' ? 'muted' : 'state state-error'),
+        el('p', `출처(source): ${isText(p.source) ? p.source : '확인 불가'} · 확인 시각: ${timeText(p.checkedAt, '확인 불가')}`, 'muted'));
+      if (vulns.length) {
+        const vl = el('ul');
+        for (const v of vulns) vl.append(el('li', `${isText(v.id) ? v.id : 'ID 확인 불가'} · 수정 시각(modified): ${timeText(v.modified, '확인 불가')}`));
+        li.append(vl);
+      }
+      ul.append(li);
+    }
+    root.append(ul);
+  }
+  root.append(el('p', NOTE, 'muted'), el('p', RETRY, 'muted'));
+  return root;
+}
+
 export function createStudentView() {
   return {
     renderIdentity,
     renderDecision,
     renderEvents,
     renderStatus,
-    renderVulnerabilities() { return '학생 구현 대기: 정확한 설치 버전·OSV 출처·조회 시각·부분 결과·조회 실패를 구분하세요.'; },
+    renderVulnerabilities,
     renderAiConnection,
     renderExplanation,
     renderAction,
