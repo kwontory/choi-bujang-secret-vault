@@ -54,10 +54,12 @@
 
 ## 실행
 
+처음 실행하는 사람은 한 장짜리 안내 [QUICKSTART.md](QUICKSTART.md)를 먼저 보세요. 준비물 설치, 두 앱 켜기, 막혔을 때 대처가 순서대로 있습니다.
+
 준비: Windows, Node.js 22~24(수업 기준 24.19.0). 외부 npm 패키지는 없습니다.
 
 ```
-cd C:\Users\victo\work\choi-bujang-secret-vault\pc-timeline
+cd <프로젝트 폴더>\pc-timeline
 npm.cmd test
 npm.cmd start
 ```

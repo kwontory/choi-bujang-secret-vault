@@ -1,5 +1,7 @@
 # BYTE BACK 방어전 · 12단계 저장점
 
+> **마지막 총공세 앱(내 PC 타임라인)을 실행하려면** [pc-timeline/QUICKSTART.md](pc-timeline/QUICKSTART.md)부터 보세요. 이 아래는 12단계 저장점 설명입니다.
+
 Supabase Auth 로그인과 서버 토큰 검증을 유지하면서, 로그인·메모 CRUD를 Vercel 서버 함수로 통일했습니다. 비밀번호, JWT, 서버 전용 키는 저장소·응답·로그에 넣지 않습니다.
 
 ## 무엇을 누가 만들었나 (출처)
