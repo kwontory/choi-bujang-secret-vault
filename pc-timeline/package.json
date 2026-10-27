@@ -1,0 +1,14 @@
+{
+  "name": "keshev-pc-timeline",
+  "version": "0.1.0",
+  "private": true,
+  "description": "케셰브 학생 앱: 내 PC 상태를 읽기만 해서 조회 시각 순서의 기록으로 보여 줍니다.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=22 <25"
+  }
+}

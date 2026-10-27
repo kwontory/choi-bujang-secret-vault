@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>케셰브 · 내 PC 타임라인</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="top">
+    <h1>내 PC 타임라인</h1>
+    <p class="sub">이 PC의 상태를 <strong>읽기만</strong> 해서 조회한 시각 순서로 쌓습니다. 설정은 바꾸지 않습니다.</p>
+  </header>
+  <main>
+    <section class="controls" aria-label="조회">
+      <button id="refresh" type="button">지금 조회</button>
+      <p id="status" class="status" role="status" aria-live="polite">아직 조회하지 않았습니다.</p>
+    </section>
+    <section aria-labelledby="timeline-title">
+      <h2 id="timeline-title">조회 기록 <span class="hint">최신이 위</span></h2>
+      <ol id="timeline" class="timeline"></ol>
+      <p id="empty" class="empty">조회 기록이 없습니다. 「지금 조회」를 누르면 첫 기록이 생깁니다.</p>
+    </section>
+    <section class="legend" aria-label="표시 설명">
+      <p><span class="chip ok">● 정상</span> <span class="chip warn">▲ 주의</span> <span class="chip unknown">? 확인 불가</span></p>
+      <p>「실측」은 이 PC에서 방금 잰 값입니다. 「확인 불가」는 값을 읽지 못했다는 뜻이며 정상도 위험도 아닙니다.</p>
+      <p>주의 기준(앱이 정한 기준, 침해 판정 아님): CPU 90% 이상 · 메모리 90% 이상 · 디스크 남은 공간 10% 미만.</p>
+      <p>기록은 이 화면을 연 동안만 보관하며 새로고침하면 지워집니다.</p>
+    </section>
+  </main>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
