@@ -34,6 +34,7 @@ test('서버 허용·거절', async t => {
   const page = await call('/');
   assert.equal(page.status, 200);
   assert.match(page.headers['content-security-policy'], /connect-src 'self'/);
+  assert.equal((await call('/filter.mjs')).status, 200);
 
   assert.equal((await call('/api/anything')).status, 404);
   assert.equal((await call('/../server.mjs')).status, 404);

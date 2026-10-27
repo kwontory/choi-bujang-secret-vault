@@ -23,6 +23,7 @@ const FILES = new Map([
   ['/index.html', ['index.html', 'text/html']],
   ['/app.js', ['app.js', 'text/javascript']],
   ['/style.css', ['style.css', 'text/css']],
+  ['/filter.mjs', ['filter.mjs', 'text/javascript']],
 ]);
 // 읽기 전용 조회 주소. SDP 연결 상태는 PC 조회와 섞지 않도록 주소를 따로 둡니다.
 const ROUTES = new Map([['/api/pc/system', 'system'], ['/api/pc/connections', 'connections'], ['/api/sdp/status', 'sdp']]);

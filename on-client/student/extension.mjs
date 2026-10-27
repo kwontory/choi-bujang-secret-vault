@@ -409,6 +409,14 @@ function renderStatus({ devices, sessions, notifications, diagnostics, mode } = 
   });
   diagBox.append(copy, copyStatus, fallback);
   root.append(diagBox);
+  // 마지막 총공세: 같은 PC에서 따로 켜는 학생 앱(pc-timeline)으로 가는 링크. 값은 여기서 읽지 않는다.
+  const pcBox = section('내 PC 타임라인', '이 PC의 CPU·메모리·디스크, 네트워크·방화벽·Windows 기록을 읽기만 해서 조회 시각 순서로 쌓는 학생 앱입니다. pc-timeline 폴더에서 npm.cmd start 로 따로 켜야 열립니다.');
+  const pcLink = el('a', '내 PC 타임라인 열기 (127.0.0.1:5190)');
+  pcLink.href = 'http://127.0.0.1:5190/';
+  pcLink.target = '_blank';
+  pcLink.rel = 'noopener noreferrer';
+  pcBox.append(pcLink, el('p', '링크가 열리지 않으면 pc-timeline 앱이 꺼져 있는 것입니다. 케셰브의 연결 상태와는 별개입니다.', 'muted'));
+  root.append(pcBox);
   return root;
 }
 
