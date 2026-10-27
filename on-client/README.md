@@ -34,7 +34,8 @@ npm start도 같은 서버를 켭니다. 기본 실행은 실제 회사 시스�
 - **기능**: 13 로그인·기기·세션 / 14 업무 앱 판정 / 15 접속 기록·XDR 경보 목록·필터·상세 / 16 알림·빈 화면·실패·도움정보 복사 / 17 AI 연결 점검 / 18 근거에 연결된 AI 사건 설명 / 19 조치 제안·사람 확인·ACK·효과 관측 구분 / 20 정확한 설치 버전의 OSV 조회 결과.
 - **구성**: 브라우저(`public/`, 학생 표시 함수 `student/extension.mjs`) → 로컬 앱 서버(`src/server.mjs`, `127.0.0.1:5189`) → 연결 어댑터(`src/engine.mjs`)를 거쳐 SDP 접근 제어·XDR / AI 게이트웨이(`src/ai/`) / 조치 서비스(`src/actions/`) / OSV(`src/vulnerabilities/`).
 - **지원 환경과 버전**: Windows PowerShell, Node.js 24.19.0 기준(실행 도구는 22~24 허용), 외부 npm 의존성 없음, 시작 틀 0.2.14(0.2.11에서 업데이트).
-- **학생이 고친 파일**: `student/extension.mjs`(표시 함수 8개), `docs/STUDENT_RUNBOOK.md`, 이 절. 제공 서버·화면·도구는 고치지 않았습니다.
+- **학생이 고친 파일**: `student/extension.mjs`(표시 함수 8개, 마지막 총공세에서 보호 현황에 「내 PC 타임라인 열기」 링크 추가), `docs/STUDENT_RUNBOOK.md`, 이 절. 제공 서버·화면·도구는 고치지 않았습니다.
+- **마지막 총공세 학생 앱**: 이 PC를 읽기만 해서 조회 시각 순서로 쌓는 별도 앱 `../pc-timeline/`(127.0.0.1:5190). 실행은 [../pc-timeline/QUICKSTART.md](../pc-timeline/QUICKSTART.md), 시연·근거·한계는 [../pc-timeline/DEMO.md](../pc-timeline/DEMO.md).
 
 실행·종료·재실행 순서, Mermaid 구성도와 같은 내용의 글 설명, 제공/학생 경계, 확인함·미확인 목록, 오류별 확인 순서는 [docs/STUDENT_RUNBOOK.md](docs/STUDENT_RUNBOOK.md)에 있습니다.
 
