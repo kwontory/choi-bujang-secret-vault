@@ -26,3 +26,6 @@ button:focus-visible { outline:3px solid var(--warn); outline-offset:2px; }
 .fail-text { color:var(--fail); margin:4px 0; } .fail-next { color:var(--muted); margin:0; }
 .legend { margin-top:24px; font-size:.9rem; border-top:1px solid var(--line); padding-top:8px; }
 @media (max-width:640px) { .item { grid-template-columns:1fr 1fr; } .item .note, .item .detail { grid-column:1 / -1; } }
+.chip.info { color:#7cc4ff; }
+.entry-note { margin:0 0 8px; color:var(--muted); font-size:.88rem; }
+.entry.kind-sdp { border-style:dashed; }

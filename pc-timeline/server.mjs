@@ -5,6 +5,17 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { readSystem } from './probe/system.mjs';
+import { readNetwork } from './probe/network.mjs';
+import { readWindows } from './probe/windows.mjs';
+import { readSdp } from './probe/sdp.mjs';
+
+export async function readConnections() {
+  const windows = await readWindows();
+  return { kind: 'connections', items: [readNetwork(), ...windows], checkedAt: new Date().toISOString() };
+}
+export async function readSdpStatus() {
+  return { kind: 'sdp', items: [await readSdp()], checkedAt: new Date().toISOString() };
+}
 
 const here = dirname(fileURLToPath(import.meta.url));
 const FILES = new Map([
@@ -13,6 +24,8 @@ const FILES = new Map([
   ['/app.js', ['app.js', 'text/javascript']],
   ['/style.css', ['style.css', 'text/css']],
 ]);
+// 읽기 전용 조회 주소. SDP 연결 상태는 PC 조회와 섞지 않도록 주소를 따로 둡니다.
+const ROUTES = new Map([['/api/pc/system', 'system'], ['/api/pc/connections', 'connections'], ['/api/sdp/status', 'sdp']]);
 const CSP = "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
 const BASE_HEADERS = { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'content-security-policy': CSP, 'referrer-policy': 'no-referrer' };
 
@@ -28,7 +41,7 @@ function sendJson(res, status, body) {
 }
 const fail = (res, status, code, message) => sendJson(res, status, { ok: false, error: { code, message }, meta: { checkedAt: new Date().toISOString() } });
 
-export function createPcServer({ port, probes = { system: readSystem } } = {}) {
+export function createPcServer({ port, probes = { system: readSystem, connections: readConnections, sdp: readSdpStatus } } = {}) {
   const allowedHosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
   const allowedOrigins = new Set([...allowedHosts].map(h => `http://${h}`));
   return http.createServer(async (req, res) => {
@@ -45,8 +58,8 @@ export function createPcServer({ port, probes = { system: readSystem } } = {}) {
         res.writeHead(200, { ...BASE_HEADERS, 'content-type': `${type}; charset=utf-8` });
         return res.end(data);
       }
-      if (pathname === '/api/pc/system') {
-        const data = await probes.system();
+      if (ROUTES.has(pathname)) {
+        const data = await probes[ROUTES.get(pathname)]();
         return sendJson(res, 200, { ok: true, data, meta: { mode: 'local', checkedAt: data.checkedAt } });
       }
       return fail(res, 404, 'NOT_FOUND', '없는 주소입니다.');

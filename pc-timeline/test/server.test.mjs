@@ -5,7 +5,8 @@ import http from 'node:http';
 import { createPcServer } from '../server.mjs';
 
 const PORT = 5397;
-const fake = { system: async () => ({ kind: 'system', items: [], checkedAt: '2026-10-27T05:00:00.000Z' }) };
+const empty = kind => async () => ({ kind, items: [], checkedAt: '2026-10-27T05:00:00.000Z' });
+const fake = { system: empty('system'), connections: empty('connections'), sdp: empty('sdp') };
 
 function call(path, { method = 'GET', headers = {} } = {}) {
   return new Promise((resolve, reject) => {
@@ -24,9 +25,11 @@ test('서버 허용·거절', async t => {
   await new Promise(r => server.listen(PORT, '127.0.0.1', r));
   t.after(() => server.close());
 
-  const ok = await call('/api/pc/system');
-  assert.equal(ok.status, 200);
-  assert.equal(JSON.parse(ok.body).ok, true);
+  for (const path of ['/api/pc/system', '/api/pc/connections', '/api/sdp/status']) {
+    const ok = await call(path);
+    assert.equal(ok.status, 200, path);
+    assert.equal(JSON.parse(ok.body).ok, true, path);
+  }
 
   const page = await call('/');
   assert.equal(page.status, 200);
